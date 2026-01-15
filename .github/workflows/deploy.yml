@@ -84,9 +84,51 @@ jobs:
           
           echo "✅ SSH setup completed"
 
+      - name: Show GitHub Actions IP
+        run: |
+          echo "🔍 GitHub Actions runner IP address:"
+          GITHUB_IP=$(curl -s https://api.ipify.org)
+          echo "Runner IP: ${GITHUB_IP}"
+          echo ""
+          echo "📋 Troubleshooting checklist:"
+          echo "  ✓ Security group has SSH (22) rule with 0.0.0.0/0"
+          echo "  ? Verify security group is attached to instance"
+          echo "  ? Check VPC Network ACLs allow TCP port 22"
+          echo "  ? Ensure instance is running and has public IP"
+          echo ""
+          echo "If connection still fails, check Network ACLs in VPC console"
+
       - name: Test SSH connection
         run: |
-          ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
+          echo "🔌 Attempting SSH connection..."
+          echo "Connecting to: ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}"
+          
+          # Try with verbose output for debugging
+          ssh -v -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o LogLevel=ERROR ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'" || {
+            echo ""
+            echo "❌ SSH connection failed!"
+            echo ""
+            echo "Troubleshooting steps:"
+            echo "1. Verify the security group is attached to your instance:"
+            echo "   - Go to EC2 → Instances → Select your instance → Security tab"
+            echo "   - Ensure the security group with SSH rule (0.0.0.0/0) is listed"
+            echo ""
+            echo "2. Check Network ACLs (if using VPC):"
+            echo "   - Go to VPC → Network ACLs"
+            echo "   - Ensure inbound rule allows TCP port 22 from 0.0.0.0/0"
+            echo ""
+            echo "3. Verify instance is running:"
+            echo "   - Check EC2 → Instances → Instance state should be 'running'"
+            echo ""
+            echo "4. Check if UFW firewall is blocking (we opened 443, but verify 22):"
+            echo "   - SSH into instance and run: sudo ufw status"
+            echo "   - Should show: 22/tcp ALLOW Anywhere"
+            echo ""
+            echo "5. Try connecting from your local machine to verify instance is reachable:"
+            echo "   ssh -i ~/Downloads/ikemen-key.pem ubuntu@35.75.14.169"
+            echo ""
+            exit 1
+          }
 
       - name: Create app directory
         run: |

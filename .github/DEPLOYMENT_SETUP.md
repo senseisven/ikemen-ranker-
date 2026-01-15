@@ -110,10 +110,83 @@ This usually means one of your secrets is not set correctly. Check:
    - The "Validate secrets" step will show which secret is missing
    - Look for error messages like "EC2_SSH_KEY secret is not set or is empty"
 
-### SSH Connection Fails
+### SSH Connection Timeout / Connection Refused
+
+**Error:** `ssh: connect to host *** port 22: Connection timed out`
+
+If you already have an SSH rule allowing `0.0.0.0/0` in your security group but still get timeouts, check:
+
+1. **Verify Security Group is Attached:**
+   - Go to EC2 → Instances → Select your instance
+   - Check the **Security** tab
+   - Ensure the security group with the `0.0.0.0/0` SSH rule is listed and attached
+   - If multiple security groups, ensure at least one allows SSH from `0.0.0.0/0`
+
+2. **Check Network ACLs (VPC):**
+   - Go to **VPC** → **Network ACLs**
+   - Find the Network ACL associated with your instance's subnet
+   - Check **Inbound rules** - should allow TCP port 22 from `0.0.0.0/0`
+   - Network ACLs can override security group rules!
+
+3. **Verify UFW Firewall (on the instance):**
+   ```bash
+   ssh -i ~/Downloads/ikemen-key.pem ubuntu@35.75.14.169
+   sudo ufw status
+   ```
+   - Should show: `22/tcp ALLOW Anywhere`
+   - If not, run: `sudo ufw allow 22/tcp`
+
+4. **Check Instance State:**
+   - Ensure instance is **running** (not stopped/stopping)
+   - Check if instance has a public IP address
+
+**Solution: Update EC2 Security Group**
+
+1. **Go to AWS Console:**
+   - Navigate to **EC2** → **Instances**
+   - Select your instance (`35.75.14.169`)
+   - Click on the **Security** tab
+   - Click on the security group name
+
+2. **Edit Inbound Rules:**
+   - Click **Edit inbound rules**
+   - Click **Add rule**
+   - Configure:
+     - **Type:** SSH
+     - **Protocol:** TCP
+     - **Port range:** 22
+     - **Source:** `0.0.0.0/0` (allows from anywhere)
+       - ⚠️ **Note:** For better security, you can restrict to GitHub Actions IP ranges, but they change frequently
+     - **Description:** "Allow SSH from GitHub Actions"
+   - Click **Save rules**
+
+3. **Alternative (More Secure but Complex):**
+   - Use GitHub's IP ranges: https://api.github.com/meta
+   - Or use AWS Systems Manager Session Manager (requires additional setup)
+
+4. **Verify:**
+   - Wait a minute for changes to propagate
+   - Re-run the GitHub Actions workflow
+
+**Quick Fix Command (if you have AWS CLI configured):**
+```bash
+# Get your instance ID
+INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=ip-address,Values=35.75.14.169" --query 'Reservations[0].Instances[0].InstanceId' --output text)
+
+# Get security group ID
+SG_ID=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].SecurityGroups[0].GroupId' --output text)
+
+# Add SSH rule (allows from anywhere - less secure but works)
+aws ec2 authorize-security-group-ingress \
+  --group-id $SG_ID \
+  --protocol tcp \
+  --port 22 \
+  --cidr 0.0.0.0/0
+```
+
+### SSH Connection Fails (Other Reasons)
 - Verify `EC2_SSH_KEY` secret contains the complete private key
 - Check that `EC2_HOST` and `EC2_USER` are correct
-- Ensure EC2 security group allows SSH (port 22) from GitHub Actions IPs
 - The workflow now validates secrets before attempting SSH connection
 
 ### Build Fails
