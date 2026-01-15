@@ -1,0 +1,149 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Test SSH connection
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
+
+      - name: Create app directory
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p /home/${{ secrets.EC2_USER }}/create-anything"
+
+      - name: Copy project files
+        run: |
+          rsync -avz --progress \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude '.DS_Store' \
+            --exclude 'build' \
+            --exclude '.react-router' \
+            --exclude '*.log' \
+            --exclude '.github' \
+            -e "ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no" \
+            ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/create-anything/
+
+      - name: Install dependencies and build
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem ${EC2_USER}@${{ secrets.EC2_HOST }} bash << REMOTE_SCRIPT
+            set -e
+            EC2_USER_VAR="${EC2_USER}"
+            cd /home/\${EC2_USER_VAR}/create-anything/apps/web
+            export NODE_ENV=production
+            
+            # Check if Node.js is installed
+            if ! command -v node &> /dev/null; then
+              echo "📥 Installing Node.js..."
+              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+            
+            # Verify Node.js installation
+            node --version
+            npm --version
+            
+            # Install dependencies
+            echo "📦 Installing npm dependencies..."
+            npm install --legacy-peer-deps --production=false
+            
+            # Build the application
+            echo "🏗️  Building application..."
+            # Install timeout if not available
+            if ! command -v timeout &> /dev/null; then
+              sudo apt-get install -y coreutils
+            fi
+            
+            # Build with timeout to prevent hanging
+            timeout 600 npm run build || {
+              BUILD_EXIT_CODE=$?
+              if [ $BUILD_EXIT_CODE -eq 124 ]; then
+                echo "⚠️  Build timed out after 10 minutes"
+              else
+                echo "⚠️  Build exited with code $BUILD_EXIT_CODE"
+              fi
+              
+              # Check if build directory exists and has content
+              if [ -d "build" ] && [ -f "build/server/index.js" ]; then
+                echo "✅ Build directory exists with server file, continuing..."
+              else
+                echo "❌ Build directory missing or incomplete, exiting..."
+                exit 1
+              fi
+            }
+            
+            echo "✅ Build process completed!"
+          REMOTE_SCRIPT
+
+      - name: Setup systemd service
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem ${EC2_USER}@${{ secrets.EC2_HOST }} bash << REMOTE_SCRIPT
+            set -e
+            EC2_USER_VAR="${EC2_USER}"
+            NPM_PATH=\$(which npm)
+            
+            sudo tee /etc/systemd/system/create-anything.service > /dev/null << EOFSERVICE
+          [Unit]
+          Description=Create Anything Web App
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=\${EC2_USER_VAR}
+          WorkingDirectory=/home/\${EC2_USER_VAR}/create-anything/apps/web
+          Environment=NODE_ENV=production
+          Environment=PORT=4000
+          ExecStart=\${NPM_PATH} start
+          Restart=always
+          RestartSec=10
+
+          [Install]
+          WantedBy=multi-user.target
+          EOFSERVICE
+
+            sudo systemctl daemon-reload
+            sudo systemctl enable create-anything.service
+            sudo systemctl restart create-anything.service
+            
+            echo "✅ Service started!"
+          REMOTE_SCRIPT
+
+      - name: Verify deployment
+        run: |
+          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
+            echo "🔍 Checking service status..."
+            sudo systemctl status create-anything.service --no-pager -l || true
+            
+            echo ""
+            echo "✅ Deployment completed!"
+            echo "🌐 Your app should be running on https://ikemen-ranking.jp"
+          REMOTE_SCRIPT
+
+      - name: Cleanup SSH key
+        if: always()
+        run: |
+          rm -f ~/.ssh/ec2_key.pem
