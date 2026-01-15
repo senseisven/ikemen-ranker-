@@ -77,10 +77,44 @@ You can also trigger the workflow manually:
 
 ## Troubleshooting
 
+### "Process completed with exit code 1" on Setup SSH step
+
+This usually means one of your secrets is not set correctly. Check:
+
+1. **Verify all secrets are set:**
+   - Go to **Settings** → **Secrets and variables** → **Actions**
+   - Make sure you see all three secrets: `EC2_SSH_KEY`, `EC2_HOST`, `EC2_USER`
+   - Check that none show as "hidden" or empty
+
+2. **Check EC2_SSH_KEY format:**
+   - The key must include the BEGIN and END lines
+   - Copy the ENTIRE key including:
+     ```
+     -----BEGIN RSA PRIVATE KEY-----
+     (all the key content)
+     -----END RSA PRIVATE KEY-----
+     ```
+   - Make sure there are no extra spaces or characters before/after
+   - Try copying the key again: `cat ~/Downloads/ikemen-key.pem | pbcopy`
+
+3. **Verify secret values:**
+   - `EC2_HOST` should be exactly: `35.75.14.169` (no spaces, no quotes)
+   - `EC2_USER` should be exactly: `ubuntu` (lowercase, no spaces)
+
+4. **Re-create secrets if needed:**
+   - Delete the existing secrets
+   - Create them again, being careful to copy the exact values
+   - For the SSH key, make sure you copy the entire file content
+
+5. **Check workflow logs:**
+   - The "Validate secrets" step will show which secret is missing
+   - Look for error messages like "EC2_SSH_KEY secret is not set or is empty"
+
 ### SSH Connection Fails
 - Verify `EC2_SSH_KEY` secret contains the complete private key
 - Check that `EC2_HOST` and `EC2_USER` are correct
 - Ensure EC2 security group allows SSH (port 22) from GitHub Actions IPs
+- The workflow now validates secrets before attempting SSH connection
 
 ### Build Fails
 - Check the build logs in GitHub Actions

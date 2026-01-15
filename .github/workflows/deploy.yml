@@ -16,12 +16,73 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate secrets
+        run: |
+          echo "🔍 Validating secrets..."
+          if [ -z "${{ secrets.EC2_SSH_KEY }}" ]; then
+            echo "❌ Error: EC2_SSH_KEY secret is not set or is empty"
+            exit 1
+          fi
+          if [ -z "${{ secrets.EC2_HOST }}" ]; then
+            echo "❌ Error: EC2_HOST secret is not set or is empty"
+            exit 1
+          fi
+          if [ -z "${{ secrets.EC2_USER }}" ]; then
+            echo "❌ Error: EC2_USER secret is not set or is empty"
+            exit 1
+          fi
+          echo "✅ All secrets are configured"
+          echo "EC2_HOST: ${{ secrets.EC2_HOST }}"
+          echo "EC2_USER: ${{ secrets.EC2_USER }}"
+          echo "EC2_SSH_KEY length: $(echo -n '${{ secrets.EC2_SSH_KEY }}' | wc -c) characters"
+
       - name: Setup SSH
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key.pem
-          chmod 600 ~/.ssh/ec2_key.pem
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          set -e
+          
+          # Create .ssh directory with explicit path
+          SSH_DIR="$HOME/.ssh"
+          mkdir -p "$SSH_DIR" || {
+            echo "❌ Failed to create .ssh directory"
+            exit 1
+          }
+          chmod 700 "$SSH_DIR"
+          echo "✅ Created .ssh directory"
+          
+          # Write SSH key
+          SSH_KEY_FILE="$SSH_DIR/ec2_key.pem"
+          echo "${{ secrets.EC2_SSH_KEY }}" > "$SSH_KEY_FILE" || {
+            echo "❌ Failed to write SSH key file"
+            exit 1
+          }
+          chmod 600 "$SSH_KEY_FILE"
+          
+          # Verify key file
+          if [ ! -f "$SSH_KEY_FILE" ]; then
+            echo "❌ Error: SSH key file was not created"
+            exit 1
+          fi
+          
+          if [ ! -s "$SSH_KEY_FILE" ]; then
+            echo "❌ Error: SSH key file is empty"
+            exit 1
+          fi
+          
+          # Basic validation - check for BEGIN marker
+          if ! head -1 "$SSH_KEY_FILE" | grep -q "BEGIN"; then
+            echo "⚠️  Warning: SSH key might be malformed (no BEGIN marker found)"
+            echo "First line of key: $(head -1 "$SSH_KEY_FILE")"
+          fi
+          
+          echo "✅ SSH key file created: $SSH_KEY_FILE"
+          echo "Key file size: $(wc -c < "$SSH_KEY_FILE") bytes"
+          
+          # Add host to known_hosts
+          KNOWN_HOSTS="$SSH_DIR/known_hosts"
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> "$KNOWN_HOSTS" 2>/dev/null || true
+          chmod 600 "$KNOWN_HOSTS" 2>/dev/null || true
+          
+          echo "✅ SSH setup completed"
 
       - name: Test SSH connection
         run: |
