@@ -32,107 +32,17 @@ jobs:
             exit 1
           fi
           echo "✅ All secrets are configured"
-          echo "EC2_HOST: ${{ secrets.EC2_HOST }}"
-          echo "EC2_USER: ${{ secrets.EC2_USER }}"
-          echo "EC2_SSH_KEY length: $(echo -n '${{ secrets.EC2_SSH_KEY }}' | wc -c) characters"
 
       - name: Setup SSH
         run: |
-          set -e
-          
-          # Create .ssh directory with explicit path
-          SSH_DIR="$HOME/.ssh"
-          mkdir -p "$SSH_DIR" || {
-            echo "❌ Failed to create .ssh directory"
-            exit 1
-          }
-          chmod 700 "$SSH_DIR"
-          echo "✅ Created .ssh directory"
-          
-          # Write SSH key
-          SSH_KEY_FILE="$SSH_DIR/ec2_key.pem"
-          echo "${{ secrets.EC2_SSH_KEY }}" > "$SSH_KEY_FILE" || {
-            echo "❌ Failed to write SSH key file"
-            exit 1
-          }
-          chmod 600 "$SSH_KEY_FILE"
-          
-          # Verify key file
-          if [ ! -f "$SSH_KEY_FILE" ]; then
-            echo "❌ Error: SSH key file was not created"
-            exit 1
-          fi
-          
-          if [ ! -s "$SSH_KEY_FILE" ]; then
-            echo "❌ Error: SSH key file is empty"
-            exit 1
-          fi
-          
-          # Basic validation - check for BEGIN marker
-          if ! head -1 "$SSH_KEY_FILE" | grep -q "BEGIN"; then
-            echo "⚠️  Warning: SSH key might be malformed (no BEGIN marker found)"
-            echo "First line of key: $(head -1 "$SSH_KEY_FILE")"
-          fi
-          
-          echo "✅ SSH key file created: $SSH_KEY_FILE"
-          echo "Key file size: $(wc -c < "$SSH_KEY_FILE") bytes"
-          
-          # Add host to known_hosts
-          KNOWN_HOSTS="$SSH_DIR/known_hosts"
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> "$KNOWN_HOSTS" 2>/dev/null || true
-          chmod 600 "$KNOWN_HOSTS" 2>/dev/null || true
-          
-          echo "✅ SSH setup completed"
-
-      - name: Show GitHub Actions IP
-        run: |
-          echo "🔍 GitHub Actions runner IP address:"
-          GITHUB_IP=$(curl -s https://api.ipify.org)
-          echo "Runner IP: ${GITHUB_IP}"
-          echo ""
-          echo "📋 Troubleshooting checklist:"
-          echo "  ✓ Security group has SSH (22) rule with 0.0.0.0/0"
-          echo "  ? Verify security group is attached to instance"
-          echo "  ? Check VPC Network ACLs allow TCP port 22"
-          echo "  ? Ensure instance is running and has public IP"
-          echo ""
-          echo "If connection still fails, check Network ACLs in VPC console"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Test SSH connection
         run: |
-          echo "🔌 Attempting SSH connection..."
-          echo "Connecting to: ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}"
-          
-          # Try with verbose output for debugging
-          ssh -v -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o LogLevel=ERROR ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'" || {
-            echo ""
-            echo "❌ SSH connection failed!"
-            echo ""
-            echo "Troubleshooting steps:"
-            echo "1. Verify the security group is attached to your instance:"
-            echo "   - Go to EC2 → Instances → Select your instance → Security tab"
-            echo "   - Ensure the security group with SSH rule (0.0.0.0/0) is listed"
-            echo ""
-            echo "2. Check Network ACLs (if using VPC):"
-            echo "   - Go to VPC → Network ACLs"
-            echo "   - Ensure inbound rule allows TCP port 22 from 0.0.0.0/0"
-            echo ""
-            echo "3. Verify instance is running:"
-            echo "   - Check EC2 → Instances → Instance state should be 'running'"
-            echo ""
-            echo "4. Check if UFW firewall is blocking (we opened 443, but verify 22):"
-            echo "   - SSH into instance and run: sudo ufw status"
-            echo "   - Should show: 22/tcp ALLOW Anywhere"
-            echo ""
-            echo "5. Try connecting from your local machine to verify instance is reachable:"
-            echo "   ssh -i ~/Downloads/ikemen-key.pem ubuntu@35.75.14.169"
-            echo ""
-            exit 1
-          }
-
-      - name: Create app directory
-        run: |
-          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p /home/${{ secrets.EC2_USER }}/create-anything"
+          ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=15 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
 
       - name: Copy project files
         run: |
@@ -148,78 +58,50 @@ jobs:
             -e "ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no" \
             ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/create-anything/
 
-      - name: Install dependencies and build static site
+      - name: Install dependencies and restart app
         env:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           ssh -i ~/.ssh/ec2_key.pem ${EC2_USER}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
             set -e
-            cd /home/ubuntu/create-anything
+            cd /home/ubuntu/create-anything/apps/web
             
             # Check Node.js version and install v20+ if needed
-            if ! command -v node &> /dev/null; then
-              echo "📥 Installing Node.js 20..."
+            NODE_VERSION=$(node -v | cut -d'.' -f1 | tr -d 'v')
+            if [ "$NODE_VERSION" -lt 20 ]; then
+              echo "📥 Upgrading Node.js to v20..."
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
               sudo apt-get install -y nodejs
-            else
-              NODE_VERSION=$(node -v | cut -d'.' -f1 | tr -d 'v')
-              if [ "$NODE_VERSION" -lt 20 ]; then
-                echo "📥 Upgrading Node.js to v20..."
-                curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-                sudo apt-get install -y nodejs
-              fi
             fi
             
             echo "Node version: $(node --version)"
-            echo "npm version: $(npm --version)"
             
-            # Install root-level dependencies for static build
+            # Install dependencies
             echo "📦 Installing dependencies..."
             npm install --legacy-peer-deps
             
-            # Build static site (Vite SPA)
-            echo "🏗️  Building static site..."
-            npm run build:vite
+            # Restart the app with PM2
+            echo "🔄 Restarting app..."
+            pm2 restart ikemen || pm2 start 'npm run dev -- --port 4000 --host 0.0.0.0' --name ikemen
+            pm2 save
             
-            echo "✅ Build completed!"
-            ls -la dist/
-          REMOTE_SCRIPT
-
-      - name: Deploy to nginx
-        env:
-          EC2_USER: ${{ secrets.EC2_USER }}
-        run: |
-          ssh -i ~/.ssh/ec2_key.pem ${EC2_USER}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
-            set -e
-            
-            # Clear old deployment and copy new files
-            echo "🚀 Deploying to nginx..."
-            sudo rm -rf /var/www/ikemen-compass/*
-            sudo cp -r /home/ubuntu/create-anything/dist/* /var/www/ikemen-compass/
-            
-            # Copy public assets (favicon, etc.)
-            sudo cp /home/ubuntu/create-anything/public/favicon.ico /var/www/ikemen-compass/ 2>/dev/null || true
-            sudo cp /home/ubuntu/create-anything/public/placeholder.svg /var/www/ikemen-compass/ 2>/dev/null || true
-            sudo cp /home/ubuntu/create-anything/public/robots.txt /var/www/ikemen-compass/ 2>/dev/null || true
-            
-            # Set correct ownership
-            sudo chown -R www-data:www-data /var/www/ikemen-compass/
-            
-            echo "✅ Files deployed to /var/www/ikemen-compass/"
-            ls -la /var/www/ikemen-compass/
+            echo "✅ Deployment completed!"
           REMOTE_SCRIPT
 
       - name: Verify deployment
         run: |
           ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
             echo "🔍 Verifying deployment..."
+            pm2 status
+            
+            sleep 5
             
             # Test that the site is accessible
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://ikemen-ranking.jp/)
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4000/)
             if [ "$HTTP_STATUS" = "200" ]; then
-              echo "✅ Site is accessible (HTTP $HTTP_STATUS)"
+              echo "✅ App is running (HTTP $HTTP_STATUS)"
             else
-              echo "⚠️  Site returned HTTP $HTTP_STATUS"
+              echo "⚠️  App returned HTTP $HTTP_STATUS"
             fi
             
             echo ""
