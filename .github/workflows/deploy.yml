@@ -141,109 +141,90 @@ jobs:
             --exclude '.git' \
             --exclude '.DS_Store' \
             --exclude 'build' \
+            --exclude 'dist' \
             --exclude '.react-router' \
             --exclude '*.log' \
             --exclude '.github' \
             -e "ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no" \
             ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/create-anything/
 
-      - name: Install dependencies and build
+      - name: Install dependencies and build static site
         env:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          ssh -i ~/.ssh/ec2_key.pem ${EC2_USER}@${{ secrets.EC2_HOST }} bash << REMOTE_SCRIPT
+          ssh -i ~/.ssh/ec2_key.pem ${EC2_USER}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
             set -e
-            EC2_USER_VAR="${EC2_USER}"
-            cd /home/\${EC2_USER_VAR}/create-anything/apps/web
-            export NODE_ENV=production
+            cd /home/ubuntu/create-anything
             
-            # Check if Node.js is installed
+            # Check Node.js version and install v20+ if needed
             if ! command -v node &> /dev/null; then
-              echo "📥 Installing Node.js..."
+              echo "📥 Installing Node.js 20..."
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
               sudo apt-get install -y nodejs
+            else
+              NODE_VERSION=$(node -v | cut -d'.' -f1 | tr -d 'v')
+              if [ "$NODE_VERSION" -lt 20 ]; then
+                echo "📥 Upgrading Node.js to v20..."
+                curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+                sudo apt-get install -y nodejs
+              fi
             fi
             
-            # Verify Node.js installation
-            node --version
-            npm --version
+            echo "Node version: $(node --version)"
+            echo "npm version: $(npm --version)"
             
-            # Install dependencies
-            echo "📦 Installing npm dependencies..."
-            npm install --legacy-peer-deps --production=false
+            # Install root-level dependencies for static build
+            echo "📦 Installing dependencies..."
+            npm install --legacy-peer-deps
             
-            # Build the application
-            echo "🏗️  Building application..."
-            # Install timeout if not available
-            if ! command -v timeout &> /dev/null; then
-              sudo apt-get install -y coreutils
-            fi
+            # Build static site (Vite SPA)
+            echo "🏗️  Building static site..."
+            npm run build:vite
             
-            # Build with timeout to prevent hanging
-            timeout 600 npm run build || {
-              BUILD_EXIT_CODE=$?
-              if [ $BUILD_EXIT_CODE -eq 124 ]; then
-                echo "⚠️  Build timed out after 10 minutes"
-              else
-                echo "⚠️  Build exited with code $BUILD_EXIT_CODE"
-              fi
-              
-              # Check if build directory exists and has content
-              if [ -d "build" ] && [ -f "build/server/index.js" ]; then
-                echo "✅ Build directory exists with server file, continuing..."
-              else
-                echo "❌ Build directory missing or incomplete, exiting..."
-                exit 1
-              fi
-            }
-            
-            echo "✅ Build process completed!"
+            echo "✅ Build completed!"
+            ls -la dist/
           REMOTE_SCRIPT
 
-      - name: Setup systemd service
+      - name: Deploy to nginx
         env:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          ssh -i ~/.ssh/ec2_key.pem ${EC2_USER}@${{ secrets.EC2_HOST }} bash << REMOTE_SCRIPT
+          ssh -i ~/.ssh/ec2_key.pem ${EC2_USER}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
             set -e
-            EC2_USER_VAR="${EC2_USER}"
-            NPM_PATH=\$(which npm)
             
-            sudo tee /etc/systemd/system/create-anything.service > /dev/null << EOFSERVICE
-          [Unit]
-          Description=Create Anything Web App
-          After=network.target
-
-          [Service]
-          Type=simple
-          User=\${EC2_USER_VAR}
-          WorkingDirectory=/home/\${EC2_USER_VAR}/create-anything/apps/web
-          Environment=NODE_ENV=production
-          Environment=PORT=4000
-          ExecStart=\${NPM_PATH} start
-          Restart=always
-          RestartSec=10
-
-          [Install]
-          WantedBy=multi-user.target
-          EOFSERVICE
-
-            sudo systemctl daemon-reload
-            sudo systemctl enable create-anything.service
-            sudo systemctl restart create-anything.service
+            # Clear old deployment and copy new files
+            echo "🚀 Deploying to nginx..."
+            sudo rm -rf /var/www/ikemen-compass/*
+            sudo cp -r /home/ubuntu/create-anything/dist/* /var/www/ikemen-compass/
             
-            echo "✅ Service started!"
+            # Copy public assets (favicon, etc.)
+            sudo cp /home/ubuntu/create-anything/public/favicon.ico /var/www/ikemen-compass/ 2>/dev/null || true
+            sudo cp /home/ubuntu/create-anything/public/placeholder.svg /var/www/ikemen-compass/ 2>/dev/null || true
+            sudo cp /home/ubuntu/create-anything/public/robots.txt /var/www/ikemen-compass/ 2>/dev/null || true
+            
+            # Set correct ownership
+            sudo chown -R www-data:www-data /var/www/ikemen-compass/
+            
+            echo "✅ Files deployed to /var/www/ikemen-compass/"
+            ls -la /var/www/ikemen-compass/
           REMOTE_SCRIPT
 
       - name: Verify deployment
         run: |
           ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
-            echo "🔍 Checking service status..."
-            sudo systemctl status create-anything.service --no-pager -l || true
+            echo "🔍 Verifying deployment..."
+            
+            # Test that the site is accessible
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://ikemen-ranking.jp/)
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "✅ Site is accessible (HTTP $HTTP_STATUS)"
+            else
+              echo "⚠️  Site returned HTTP $HTTP_STATUS"
+            fi
             
             echo ""
             echo "✅ Deployment completed!"
-            echo "🌐 Your app should be running on https://ikemen-ranking.jp"
+            echo "🌐 Your app is live at https://ikemen-ranking.jp"
           REMOTE_SCRIPT
 
       - name: Cleanup SSH key
