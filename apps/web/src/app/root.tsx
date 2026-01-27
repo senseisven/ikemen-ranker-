@@ -5,6 +5,7 @@ import {
   Scripts,
   ScrollRestoration,
   useAsyncError,
+  useLoaderData,
   useLocation,
   useRouteError,
 } from 'react-router';
@@ -34,8 +35,19 @@ import { HotReloadIndicator } from '../__create/HotReload';
 import { useSandboxStore } from '../__create/hmr-sandbox-store';
 import type { Route } from './+types/root';
 import { useDevServerHeartbeat } from '../__create/useDevServerHeartbeat';
+import { getCategories } from '@/lib/supabase';
 
 export const links = () => [];
+
+export async function loader() {
+  try {
+    const categories = await getCategories();
+    return { categories };
+  } catch (error) {
+    console.error('Root loader failed to fetch categories:', error);
+    return { categories: [] };
+  }
+}
 
 if (globalThis.window && globalThis.window !== undefined) {
   globalThis.window.fetch = fetch;
@@ -456,7 +468,7 @@ export function Layout({ children }: { children: ReactNode }) {
     }
   }, [pathname]);
   return (
-    <html lang="en">
+    <html lang="ja">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -467,7 +479,7 @@ export function Layout({ children }: { children: ReactNode }) {
         {LoadFontsSSR ? <LoadFontsSSR /> : null}
       </head>
       <body>
-        <ClientOnly loader={() => children} />
+        {children}
         <HotReloadIndicator />
         <Toaster position="bottom-right" />
         <ScrollRestoration />
@@ -479,9 +491,82 @@ export function Layout({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
+  const data = useLoaderData() as Awaited<ReturnType<typeof loader>>;
+  const categories = data?.categories ?? [];
+
   return (
     <SessionProvider>
-      <Outlet />
+      <header className="border-b border-[#e5e5e5] bg-white">
+        <div className="max-w-[1200px] mx-auto px-6 py-4">
+          <nav className="flex items-center justify-between" aria-label="メインナビゲーション">
+            <a href="/" className="text-xl font-bold tracking-tight">
+              イケメン名鑑
+            </a>
+            <div className="flex gap-8 text-sm">
+              {categories.slice(0, 6).map((cat: any) => (
+                <a
+                  key={cat.id}
+                  href={`/${cat.slug}`}
+                  className="hover:text-[#1e3a8a] transition-colors"
+                >
+                  {cat.name_ja}
+                </a>
+              ))}
+              <a href="/about" className="hover:text-[#1e3a8a] transition-colors">
+                編集方針
+              </a>
+              <a href="/admin" className="hover:text-[#1e3a8a] transition-colors">
+                管理
+              </a>
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      <main className="min-h-screen">
+        <Outlet />
+      </main>
+
+      <footer className="border-t border-[#e5e5e5] mt-24 bg-[#fafafa]">
+        <div className="max-w-[1200px] mx-auto px-6 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-8">
+            <div>
+              <h3 className="font-bold mb-4">イケメン名鑑について</h3>
+              <p className="text-sm text-[#666] leading-relaxed">
+                各界で活躍するイケメンを編集部が厳選して掲載。主観的な評価に基づくランキングです。
+              </p>
+            </div>
+            <div>
+              <h3 className="font-bold mb-4">カテゴリ</h3>
+              <nav className="flex flex-col gap-2 text-sm" aria-label="カテゴリナビゲーション">
+                {categories.map((cat: any) => (
+                  <a
+                    key={cat.id}
+                    href={`/${cat.slug}`}
+                    className="text-[#666] hover:text-[#1e3a8a]"
+                  >
+                    {cat.name_ja}
+                  </a>
+                ))}
+              </nav>
+            </div>
+            <div>
+              <h3 className="font-bold mb-4">サイト情報</h3>
+              <nav className="flex flex-col gap-2 text-sm" aria-label="サイト情報">
+                <a href="/about" className="text-[#666] hover:text-[#1e3a8a]">
+                  編集方針
+                </a>
+                <a href="/submit" className="text-[#666] hover:text-[#1e3a8a]">
+                  掲載リクエスト
+                </a>
+              </nav>
+            </div>
+          </div>
+          <div className="text-xs text-[#999] pt-8 border-t border-[#e5e5e5]">
+            © 2026 イケメン名鑑. All rights reserved.
+          </div>
+        </div>
+      </footer>
     </SessionProvider>
   );
 }

@@ -1,115 +1,189 @@
 import {
-  people,
   getPersonBySlug,
   getRelatedPeople,
   getTopInCategory,
-  getCategoryBySlug,
-} from "@/lib/data";
-import VoteButton from "@/components/VoteButton";
-import ScoreBreakdown from "@/components/ScoreBreakdown";
+  getArticles,
+} from "@/lib/supabase";
 
-export async function generateStaticParams() {
-  return people.map((p) => ({ personSlug: p.slug }));
-}
+export async function loader({ params }) {
+  const personSlug = params?.personSlug;
+  const person = personSlug ? await getPersonBySlug(personSlug) : null;
+  if (!person) {
+    return { person: null, related: [], topInCategory: [], articles: [] };
+  }
 
-export async function generateMetadata({ params }) {
-  const person = getPersonBySlug(params.personSlug);
-  if (!person) return {};
-
-  const category = getCategoryBySlug(person.categorySlug);
+  const [related, topInCategory, articles] = await Promise.all([
+    getRelatedPeople(person.id, person.category_id, person.tags, 4),
+    getTopInCategory(person.category_id, 5),
+    getArticles(person.category_id, 3),
+  ]);
 
   return {
-    title: `${person.nameJa} | ${category?.nameJa} | イケメン名鑑`,
-    description: person.bioShort,
+    person,
+    related: related ?? [],
+    topInCategory: topInCategory ?? [],
+    articles: articles ?? [],
   };
 }
 
-export default function PersonPage({ params }) {
-  const person = getPersonBySlug(params.personSlug);
+export function meta({ data }) {
+  const person = data?.person;
+  if (!person) {
+    return [{ title: "ページが見つかりません | イケメン名鑑" }];
+  }
+  const title =
+    person.meta_title || `${person.name_ja} | ${person.category?.name_ja} | イケメン名鑑`;
+  const description = person.meta_description || person.bio_short || "";
+  return [
+    { title },
+    { name: "description", content: description },
+    { name: "robots", content: "index,follow" },
+  ];
+}
+
+export default function PersonPage({ loaderData }) {
+  const person = loaderData?.person;
 
   if (!person) {
     return (
       <div className="max-w-[1200px] mx-auto px-6 py-16">
-        ページが見つかりません
+        <h1 className="text-2xl font-bold mb-4">ページが見つかりません</h1>
+        <p className="text-[#666]">お探しの人物は存在しないか、削除された可能性があります。</p>
+        <a href="/" className="text-[#1e3a8a] hover:underline mt-4 inline-block">ホームに戻る</a>
       </div>
     );
   }
 
-  const category = getCategoryBySlug(person.categorySlug);
-  const related = getRelatedPeople(person, 4);
-  const topInCategory = getTopInCategory(person.categorySlug, 5);
+  const related = loaderData?.related ?? [];
+  const topInCategory = loaderData?.topInCategory ?? [];
+  const articles = loaderData?.articles ?? [];
+
+  // JSON-LD structured data
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": person.name_ja,
+    "alternateName": person.name_kana,
+    "jobTitle": person.title,
+    "description": person.bio_short,
+    "image": person.image_url,
+    "url": `https://ikemen.jp/p/${person.slug}`,
+    "sameAs": [
+      person.link_x,
+      person.link_instagram,
+      person.link_official,
+    ].filter(Boolean),
+  };
+
+  const scores = [
+    { name: "清潔感", value: person.score_cleanliness, max: 20 },
+    { name: "顔立ち", value: person.score_facial, max: 20 },
+    { name: "雰囲気", value: person.score_vibe, max: 20 },
+    { name: "ファッション", value: person.score_fashion, max: 20 },
+    { name: "カリスマ性", value: person.score_charisma, max: 20 },
+  ];
 
   return (
     <div>
-      <div className="max-w-[1000px] mx-auto px-6 py-12">
-        <div className="mb-4 text-sm">
-          <a href="/" className="text-[#999] hover:text-[#1e3a8a]">
-            ホーム
-          </a>
-          <span className="text-[#999] mx-2">/</span>
-          <a
-            href={`/c/${category?.slug}`}
-            className="text-[#999] hover:text-[#1e3a8a]"
-          >
-            {category?.nameJa}
-          </a>
-          <span className="text-[#999] mx-2">/</span>
-          <span>{person.nameJa}</span>
-        </div>
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
 
-        <div className="grid grid-cols-5 gap-12 mb-16">
-          <div className="col-span-2">
+      <div className="max-w-[1000px] mx-auto px-6 py-12">
+        {/* Breadcrumb - SEO friendly */}
+        <nav className="mb-4 text-sm" aria-label="パンくずリスト">
+          <ol className="flex items-center">
+            <li>
+              <a href="/" className="text-[#999] hover:text-[#1e3a8a]">
+                ホーム
+              </a>
+            </li>
+            <li className="mx-2 text-[#999]">/</li>
+            <li>
+              <a
+                href={`/${person.category?.slug}`}
+                className="text-[#999] hover:text-[#1e3a8a]"
+              >
+                {person.category?.name_ja}
+              </a>
+            </li>
+            <li className="mx-2 text-[#999]">/</li>
+            <li>
+              <span className="text-[#333]">{person.name_ja}</span>
+            </li>
+          </ol>
+        </nav>
+
+        {/* Main Content */}
+        <article className="grid grid-cols-1 md:grid-cols-5 gap-12 mb-16">
+          {/* Image */}
+          <div className="md:col-span-2">
             <div className="aspect-[3/4] bg-[#f5f5f5] mb-4 relative overflow-hidden">
-              <img
-                src={person.image.src}
-                alt={person.image.alt}
-                className="w-full h-full object-cover"
-              />
+              {person.image_url ? (
+                <img
+                  src={person.image_url}
+                  alt={person.image_alt || person.name_ja}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-[#e5e5e5] to-[#f5f5f5]" />
+              )}
             </div>
-            <VoteButton personId={person.id} />
           </div>
 
-          <div className="col-span-3">
-            <div className="mb-6">
+          {/* Details */}
+          <div className="md:col-span-3">
+            <header className="mb-6">
               <h1 className="text-4xl font-bold tracking-tight mb-2">
-                {person.nameJa}
+                {person.name_ja}
               </h1>
-              {person.nameKana && (
-                <p className="text-sm text-[#999] mb-4">{person.nameKana}</p>
+              {person.name_kana && (
+                <p className="text-sm text-[#999] mb-4">{person.name_kana}</p>
               )}
               <p className="text-lg text-[#666]">{person.title}</p>
-            </div>
+            </header>
 
-            <div className="mb-8">
-              <div className="flex gap-2 mb-4">
-                {person.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-xs border border-[#e5e5e5] px-3 py-1"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-8 pb-8 border-b border-[#e5e5e5]">
-              <h2 className="font-bold mb-3">プロフィール</h2>
-              <p className="text-[#666] leading-relaxed">{person.bioShort}</p>
-            </div>
-
-            <div className="mb-8 pb-8 border-b border-[#e5e5e5]">
-              <h2 className="font-bold mb-3">イケメン評</h2>
-              <p className="text-[#666] leading-relaxed">{person.editorial}</p>
-            </div>
-
-            {person.links && Object.keys(person.links).length > 0 && (
+            {/* Tags - All visible */}
+            {person.tags.length > 0 && (
               <div className="mb-8">
+                <h2 className="sr-only">タグ</h2>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {person.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-xs border border-[#e5e5e5] px-3 py-1"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Profile - Full content for SEO/LLM */}
+            <section className="mb-8 pb-8 border-b border-[#e5e5e5]">
+              <h2 className="font-bold mb-3">プロフィール</h2>
+              <p className="text-[#666] leading-relaxed">{person.bio_short}</p>
+            </section>
+
+            {/* Editorial - Full content for SEO/LLM */}
+            {person.editorial && (
+              <section className="mb-8 pb-8 border-b border-[#e5e5e5]">
+                <h2 className="font-bold mb-3">編集部コメント</h2>
+                <p className="text-[#666] leading-relaxed">{person.editorial}</p>
+              </section>
+            )}
+
+            {/* Links */}
+            {(person.link_x || person.link_instagram || person.link_official) && (
+              <section className="mb-8">
                 <h2 className="font-bold mb-3">リンク</h2>
                 <div className="flex flex-col gap-2">
-                  {person.links.x && (
+                  {person.link_x && (
                     <a
-                      href={person.links.x}
+                      href={person.link_x}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-[#1e3a8a] hover:underline"
@@ -117,9 +191,9 @@ export default function PersonPage({ params }) {
                       X (Twitter)
                     </a>
                   )}
-                  {person.links.instagram && (
+                  {person.link_instagram && (
                     <a
-                      href={person.links.instagram}
+                      href={person.link_instagram}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-[#1e3a8a] hover:underline"
@@ -127,9 +201,9 @@ export default function PersonPage({ params }) {
                       Instagram
                     </a>
                   )}
-                  {person.links.official && (
+                  {person.link_official && (
                     <a
-                      href={person.links.official}
+                      href={person.link_official}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-[#1e3a8a] hover:underline"
@@ -138,70 +212,126 @@ export default function PersonPage({ params }) {
                     </a>
                   )}
                 </div>
-              </div>
+              </section>
             )}
           </div>
-        </div>
+        </article>
 
-        <div className="mb-16">
+        {/* Score Breakdown - All visible */}
+        <section className="mb-16">
           <h2 className="text-2xl font-bold mb-6">スコア内訳</h2>
-          <ScoreBreakdown scores={person.scores} total={person.scoreTotal} />
-        </div>
-
-        {related.length > 0 && (
-          <div className="mb-16 pb-16 border-b border-[#e5e5e5]">
-            <h2 className="text-2xl font-bold mb-6">似ているタイプ</h2>
-            <div className="grid grid-cols-4 gap-6">
-              {related.map((p) => (
-                <a key={p.id} href={`/p/${p.slug}`} className="group">
-                  <div className="aspect-[3/4] bg-[#f5f5f5] mb-3 relative overflow-hidden">
-                    <img
-                      src={p.image.src}
-                      alt={p.image.alt}
-                      className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+          <div className="bg-[#fafafa] p-6">
+            <div className="flex items-center justify-between mb-6">
+              <span className="text-sm text-[#666]">総合スコア</span>
+              <span className="text-4xl font-bold">{person.score_total}</span>
+            </div>
+            <div className="space-y-4">
+              {scores.map((score) => (
+                <div key={score.name} className="flex items-center gap-4">
+                  <span className="w-24 text-sm text-[#666]">{score.name}</span>
+                  <div className="flex-1 bg-[#e5e5e5] h-2">
+                    <div
+                      className="bg-[#1e3a8a] h-full"
+                      style={{ width: `${(score.value / score.max) * 100}%` }}
                     />
                   </div>
-                  <h3 className="font-bold text-sm mb-1">{p.nameJa}</h3>
-                  <p className="text-xs text-[#666]">{p.title}</p>
-                </a>
+                  <span className="w-12 text-right text-sm font-bold">
+                    {score.value}/{score.max}
+                  </span>
+                </div>
               ))}
             </div>
           </div>
+        </section>
+
+        {/* Related People */}
+        {related.length > 0 && (
+          <section className="mb-16 pb-16 border-b border-[#e5e5e5]">
+            <h2 className="text-2xl font-bold mb-6">似ているタイプ</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {related.map((p) => (
+                <article key={p.id}>
+                  <a href={`/p/${p.slug}`} className="group block">
+                    <div className="aspect-[3/4] bg-[#f5f5f5] mb-3 relative overflow-hidden">
+                      {p.image_url ? (
+                        <img
+                          src={p.image_url}
+                          alt={p.image_alt || p.name_ja}
+                          className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-[#e5e5e5] to-[#f5f5f5]" />
+                      )}
+                    </div>
+                    <h3 className="font-bold text-sm mb-1">{p.name_ja}</h3>
+                    <p className="text-xs text-[#666]">{p.title}</p>
+                  </a>
+                </article>
+              ))}
+            </div>
+          </section>
         )}
 
+        {/* Top in Category */}
         {topInCategory.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold mb-6">同カテゴリの上位</h2>
+          <section className="mb-16">
+            <h2 className="text-2xl font-bold mb-6">{person.category?.name_ja}の上位ランキング</h2>
             <div className="space-y-4">
               {topInCategory.map((p, index) => (
-                <a
-                  key={p.id}
-                  href={`/p/${p.slug}`}
-                  className="flex items-center gap-4 pb-4 border-b border-[#f0f0f0] hover:bg-[#fafafa] px-4 -mx-4 transition-colors"
-                >
-                  <div className="w-8 text-center">
-                    <span className="text-lg font-bold text-[#999]">
-                      {index + 1}
-                    </span>
-                  </div>
-                  <div className="w-16 h-16 bg-[#f5f5f5] flex-shrink-0 relative overflow-hidden">
-                    <img
-                      src={p.image.src}
-                      alt={p.image.alt}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-sm mb-1">{p.nameJa}</h3>
-                    <p className="text-xs text-[#666]">{p.title}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold">{p.scoreTotal}</p>
-                  </div>
-                </a>
+                <article key={p.id}>
+                  <a
+                    href={`/p/${p.slug}`}
+                    className="flex items-center gap-4 pb-4 border-b border-[#f0f0f0] hover:bg-[#fafafa] px-4 -mx-4 transition-colors"
+                  >
+                    <div className="w-8 text-center">
+                      <span className="text-lg font-bold text-[#999]">
+                        {index + 1}
+                      </span>
+                    </div>
+                    <div className="w-16 h-16 bg-[#f5f5f5] flex-shrink-0 relative overflow-hidden">
+                      {p.image_url ? (
+                        <img
+                          src={p.image_url}
+                          alt={p.image_alt || p.name_ja}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-[#e5e5e5] to-[#f5f5f5]" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-sm mb-1">{p.name_ja}</h3>
+                      <p className="text-xs text-[#666]">{p.title}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold">{p.score_total}</p>
+                    </div>
+                  </a>
+                </article>
               ))}
             </div>
-          </div>
+          </section>
+        )}
+
+        {/* Related Articles */}
+        {articles.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-bold mb-6">関連記事</h2>
+            <div className="space-y-4">
+              {articles.map((article) => (
+                <article key={article.id} className="border-b border-[#e5e5e5] pb-4">
+                  <a href={`/article/${article.slug}`} className="hover:text-[#1e3a8a]">
+                    <h3 className="font-bold mb-2">{article.title}</h3>
+                  </a>
+                  {article.excerpt && (
+                    <p className="text-sm text-[#666] line-clamp-2">{article.excerpt}</p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
         )}
       </div>
     </div>

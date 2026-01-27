@@ -107,7 +107,6 @@ const AboutPage = () => {
                 最終更新: 2024年3月
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                ※本サイトはデモサイトです。掲載されている人物・情報はすべて架空のものです。
               </p>
             </section>
           </div>
