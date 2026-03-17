@@ -2,9 +2,44 @@ module.exports = {
 	content: ['./src/**/*.{js,ts,jsx,tsx}'],
 	theme: {
 		fontFamily: {
-			sans: ['Inter', 'sans-serif'],
+			sans: ['Space Grotesk', 'Inter', 'sans-serif'],
+			display: ['Orbitron', 'monospace'],
 		},
 		extend: {
+			colors: {
+				cyber: {
+					cyan: '#0891b2',
+					blue: '#0284c7',
+					purple: '#6366f1',
+					pink: '#be185d',
+					'dark': '#f1f5f9',
+					'darker': '#f8fafc',
+				},
+			},
+			backgroundImage: {
+				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+				'gradient-mesh': 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #f8fafc 100%)',
+				'gradient-neon': 'linear-gradient(135deg, #0891b2 0%, #6366f1 50%, #be185d 100%)',
+			},
+			boxShadow: {
+				'neon': '0 4px 14px rgba(8, 145, 178, 0.15)',
+				'neon-lg': '0 8px 24px rgba(8, 145, 178, 0.2)',
+				'glow': '0 4px 14px rgba(99, 102, 241, 0.15)',
+			},
+			animation: {
+				'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
+				'float': 'float 6s ease-in-out infinite',
+			},
+			keyframes: {
+				'glow-pulse': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.6' },
+				},
+				'float': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-10px)' },
+				},
+			},
 			fontFamily: {
 				'a-bee-zee': 'A Bee Zee',
 				'ad-la-m-display': 'Ad La M Display',

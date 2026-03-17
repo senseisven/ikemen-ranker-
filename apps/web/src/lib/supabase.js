@@ -1,9 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://zsjiklrekqadvrzxcnct.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzamlrbHJla3FhZHZyenhjbmN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NDc4ODMsImV4cCI6MjA4NDAyMzg4M30.DxM3pRyVTVYmWMzx4_buYY4d2d41jRiYoiflbr5WstU';
+// Load from apps/web/.env (see vite.config envPrefix: NEXT_PUBLIC_*, SUPABASE_*)
+const supabaseUrl = import.meta.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const anonKey = import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+// Service role bypasses RLS - prefer when set (loaders run server-side only)
+const serviceRoleKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!supabaseUrl || !anonKey) {
+  throw new Error(
+    'Missing Supabase credentials. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to apps/web/.env'
+  );
+}
+
+// Prefer service role when available (bypasses RLS); this module is only used in loaders (server)
+const key = serviceRoleKey || anonKey;
+export const supabase = createClient(supabaseUrl, key);
 
 // ============================================
 // CATEGORIES
@@ -136,6 +147,26 @@ export async function getLatestPeople(limit = 10) {
     `)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
+    .limit(limit);
+  
+  if (error) throw error;
+  
+  return (data || []).map(person => ({
+    ...person,
+    tags: person.tags?.map(t => t.tag?.name).filter(Boolean) || []
+  }));
+}
+
+export async function getTopPeople(limit = 10) {
+  const { data, error } = await supabase
+    .from('people')
+    .select(`
+      *,
+      category:categories(id, slug, name_ja),
+      tags:people_tags(tag:tags(id, name))
+    `)
+    .eq('is_active', true)
+    .order('score_total', { ascending: false })
     .limit(limit);
   
   if (error) throw error;

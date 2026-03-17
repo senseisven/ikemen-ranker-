@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { loadEnv } from 'vite';
 import { reactRouter } from '@react-router/dev/vite';
 import { reactRouterHonoServer } from 'react-router-hono-server/dev';
 import { defineConfig } from 'vite';
@@ -13,9 +14,18 @@ import { nextPublicProcessEnv } from './plugins/nextPublicProcessEnv';
 import { restart } from './plugins/restart';
 import { restartEnvFileChange } from './plugins/restartEnvFileChange';
 
+const envDir = path.resolve(__dirname);
+const env = loadEnv(process.env.NODE_ENV ?? 'development', envDir, ['NEXT_PUBLIC_', 'SUPABASE_']);
+
 export default defineConfig({
-  // Keep them available via import.meta.env.NEXT_PUBLIC_*
-  envPrefix: 'NEXT_PUBLIC_',
+  // Load .env from apps/web/ (required for Supabase credentials)
+  envDir,
+  // Expose NEXT_PUBLIC_* and SUPABASE_* vars (service role for server-side, bypasses RLS)
+  envPrefix: ['NEXT_PUBLIC_', 'SUPABASE_'],
+  // Ensure service role key is available in SSR (bypasses RLS when anon blocked)
+  define: {
+    'import.meta.env.SUPABASE_SERVICE_ROLE_KEY': JSON.stringify(env.SUPABASE_SERVICE_ROLE_KEY ?? ''),
+  },
   optimizeDeps: {
     // Explicitly include fast-glob, since it gets dynamically imported and we
     // don't want that to cause a re-bundle.

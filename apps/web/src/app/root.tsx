@@ -468,7 +468,7 @@ export function Layout({ children }: { children: ReactNode }) {
     }
   }, [pathname]);
   return (
-    <html lang="ja">
+    <html lang="ja" className="bg-slate-50">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -476,9 +476,12 @@ export function Layout({ children }: { children: ReactNode }) {
         <Links />
         <script type="module" src="/src/__create/dev-error-overlay.js"></script>
         <link rel="icon" href="/src/__create/favicon.png" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         {LoadFontsSSR ? <LoadFontsSSR /> : null}
       </head>
-      <body>
+      <body className="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased">
         {children}
         <HotReloadIndicator />
         <Toaster position="bottom-right" />
@@ -496,26 +499,26 @@ export default function App() {
 
   return (
     <SessionProvider>
-      <header className="border-b border-[#e5e5e5] bg-white">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
         <div className="max-w-[1200px] mx-auto px-6 py-4">
           <nav className="flex items-center justify-between" aria-label="メインナビゲーション">
-            <a href="/" className="text-xl font-bold tracking-tight">
+            <a href="/" className="font-display text-xl font-bold tracking-widest text-gradient-neon hover:opacity-90 transition-opacity">
               イケメン名鑑
             </a>
-            <div className="flex gap-8 text-sm">
+            <div className="flex gap-6 md:gap-8 text-sm">
               {categories.slice(0, 6).map((cat: any) => (
                 <a
                   key={cat.id}
                   href={`/${cat.slug}`}
-                  className="hover:text-[#1e3a8a] transition-colors"
+                  className="text-slate-600 hover:text-indigo-600 transition-colors duration-200"
                 >
                   {cat.name_ja}
                 </a>
               ))}
-              <a href="/about" className="hover:text-[#1e3a8a] transition-colors">
+              <a href="/about" className="text-slate-600 hover:text-indigo-600 transition-colors duration-200">
                 編集方針
               </a>
-              <a href="/admin" className="hover:text-[#1e3a8a] transition-colors">
+              <a href="/admin" className="text-slate-600 hover:text-indigo-600 transition-colors duration-200">
                 管理
               </a>
             </div>
@@ -523,27 +526,27 @@ export default function App() {
         </div>
       </header>
 
-      <main className="min-h-screen">
+      <main className="min-h-screen pt-16">
         <Outlet />
       </main>
 
-      <footer className="border-t border-[#e5e5e5] mt-24 bg-[#fafafa]">
+      <footer className="mt-24 border-t border-slate-200 bg-white">
         <div className="max-w-[1200px] mx-auto px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-8">
             <div>
-              <h3 className="font-bold mb-4">イケメン名鑑について</h3>
-              <p className="text-sm text-[#666] leading-relaxed">
+              <h3 className="font-display font-bold mb-4 text-indigo-600">イケメン名鑑について</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">
                 各界で活躍するイケメンを編集部が厳選して掲載。主観的な評価に基づくランキングです。
               </p>
             </div>
             <div>
-              <h3 className="font-bold mb-4">カテゴリ</h3>
+              <h3 className="font-display font-bold mb-4 text-indigo-600">カテゴリ</h3>
               <nav className="flex flex-col gap-2 text-sm" aria-label="カテゴリナビゲーション">
                 {categories.map((cat: any) => (
                   <a
                     key={cat.id}
                     href={`/${cat.slug}`}
-                    className="text-[#666] hover:text-[#1e3a8a]"
+                    className="text-slate-400 hover:text-indigo-600 transition-colors"
                   >
                     {cat.name_ja}
                   </a>
@@ -551,18 +554,18 @@ export default function App() {
               </nav>
             </div>
             <div>
-              <h3 className="font-bold mb-4">サイト情報</h3>
+              <h3 className="font-display font-bold mb-4 text-indigo-600">サイト情報</h3>
               <nav className="flex flex-col gap-2 text-sm" aria-label="サイト情報">
-                <a href="/about" className="text-[#666] hover:text-[#1e3a8a]">
+                <a href="/about" className="text-slate-400 hover:text-indigo-600 transition-colors">
                   編集方針
                 </a>
-                <a href="/submit" className="text-[#666] hover:text-[#1e3a8a]">
+                <a href="/submit" className="text-slate-400 hover:text-indigo-600 transition-colors">
                   掲載リクエスト
                 </a>
               </nav>
             </div>
           </div>
-          <div className="text-xs text-[#999] pt-8 border-t border-[#e5e5e5]">
+          <div className="text-xs text-slate-600 pt-8 border-t border-slate-200">
             © 2026 イケメン名鑑. All rights reserved.
           </div>
         </div>

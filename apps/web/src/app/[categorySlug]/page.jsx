@@ -44,10 +44,10 @@ export default function CategoryPage({ loaderData }) {
 
   if (!category) {
     return (
-      <div className="max-w-[1200px] mx-auto px-6 py-16">
-        <h1 className="text-2xl font-bold mb-4">カテゴリが見つかりません</h1>
-        <p className="text-[#666]">お探しのカテゴリは存在しないか、削除された可能性があります。</p>
-        <a href="/" className="text-[#1e3a8a] hover:underline mt-4 inline-block">ホームに戻る</a>
+      <div className="max-w-[1200px] mx-auto px-6 py-24">
+        <h1 className="font-display text-2xl font-bold mb-4 text-slate-800">カテゴリが見つかりません</h1>
+        <p className="text-slate-600 mb-4">お探しのカテゴリは存在しないか、削除された可能性があります。</p>
+        <a href="/" className="text-indigo-600 hover:underline mt-4 inline-block">ホームに戻る</a>
       </div>
     );
   }
@@ -82,156 +82,163 @@ export default function CategoryPage({ loaderData }) {
   };
 
   return (
-    <div className="max-w-[1200px] mx-auto px-6 py-12">
+    <div className="relative">
       {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
-      {/* Header Section - Full content for LLM readability */}
-      <header className="mb-12">
-        <h1 className="text-3xl font-bold tracking-tight mb-4">
-          {category.name_ja}
-        </h1>
-        <p className="text-[#666] leading-relaxed max-w-[800px]">
-          {category.description}
-        </p>
-      </header>
+      {/* Background */}
+      <div className="fixed inset-0 -z-10 bg-slate-50" aria-hidden="true" />
 
-      {/* Tags Section - Displayed as static content, no tabs */}
-      {tags.length > 0 && (
-        <section className="mb-8 pb-6 border-b border-[#e5e5e5]">
-          <h2 className="font-bold text-lg mb-4">タグ一覧</h2>
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag) => (
-              <span
-                key={tag}
-                className="px-3 py-1 text-sm border border-[#e5e5e5] bg-[#fafafa]"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
+      <div className="max-w-[1200px] mx-auto px-6 py-16">
+        {/* Header Section */}
+        <header className="mb-16">
+          <div className="w-12 h-0.5 bg-gradient-to-r from-cyber-cyan to-cyber-purple mb-6" />
+          <h1 className="font-display text-4xl md:text-5xl font-bold tracking-wide mb-4 text-gradient-neon">
+            {category.name_ja}
+          </h1>
+          <p className="text-slate-600 leading-relaxed max-w-[800px]">
+            {category.description}
+          </p>
+        </header>
 
-      {/* People List - All content visible for SEO/LLM */}
-      <section className="mb-16">
-        <h2 className="text-2xl font-bold mb-6">
-          {category.name_ja}ランキング（{sortedPeople.length}名）
-        </h2>
-        
-        <div className="space-y-0">
-          {sortedPeople.map((person, index) => (
-            <article
-              key={person.id}
-              className="flex items-center gap-6 py-6 border-b border-[#e5e5e5] hover:bg-[#fafafa] px-6 -mx-6 transition-colors"
-            >
-              <div className="w-12 text-center flex-shrink-0">
-                <span className="text-2xl font-bold text-[#999]" aria-label={`ランキング${index + 1}位`}>
-                  {index + 1}
+        {/* Tags Section */}
+        {tags.length > 0 && (
+          <section className="mb-12 pb-8 border-b border-slate-200">
+            <h2 className="font-display font-bold text-lg mb-4 text-indigo-600">タグ一覧</h2>
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-3 py-1.5 text-sm border border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors rounded"
+                >
+                  {tag}
                 </span>
-              </div>
-              <a href={`/p/${person.slug}`} className="w-20 h-20 bg-[#f5f5f5] flex-shrink-0 relative overflow-hidden block">
-                {person.image_url ? (
-                  <img
-                    src={person.image_url}
-                    alt={person.image_alt || person.name_ja}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-[#e5e5e5] to-[#f5f5f5]" />
-                )}
-              </a>
-              <div className="flex-1">
-                <a href={`/p/${person.slug}`} className="hover:text-[#1e3a8a]">
-                  <h3 className="font-bold mb-1">{person.name_ja}</h3>
-                </a>
-                <p className="text-sm text-[#666] mb-2">{person.title}</p>
-                {/* All tags visible - no hidden content */}
-                <div className="flex flex-wrap gap-2">
-                  {person.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-xs text-[#999] border border-[#e5e5e5] px-2 py-0.5"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                {/* Bio visible for LLM */}
-                {person.bio_short && (
-                  <p className="text-sm text-[#888] mt-2 line-clamp-2">{person.bio_short}</p>
-                )}
-              </div>
-              <div className="text-right flex-shrink-0">
-                <div className="text-sm text-[#999] mb-1">Total Score</div>
-                <div className="text-3xl font-bold">{person.score_total}</div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+              ))}
+            </div>
+          </section>
+        )}
 
-      {/* Related Articles - SEO friendly content */}
-      {articles.length > 0 && (
-        <section className="mb-16">
-          <h2 className="text-2xl font-bold mb-6">{category.name_ja}関連記事</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {articles.map((article) => (
-              <article key={article.id} className="border border-[#e5e5e5] p-6 hover:border-[#1e3a8a] transition-colors">
-                <a href={`/article/${article.slug}`}>
-                  <h3 className="font-bold text-lg mb-2 hover:text-[#1e3a8a]">{article.title}</h3>
+        {/* People List */}
+        <section className="mb-20">
+          <h2 className="font-display text-2xl font-bold mb-8 text-cyber-cyan">
+            — {category.name_ja}ランキング（{sortedPeople.length}名） —
+          </h2>
+          <div className="space-y-0">
+            {sortedPeople.map((person, index) => (
+              <article
+                key={person.id}
+                className="flex items-center gap-6 py-6 border-b border-slate-200 hover:bg-slate-50 px-6 -mx-6 transition-all duration-200 rounded-sm"
+              >
+                <div className="w-12 text-center flex-shrink-0">
+                  <span className="font-display text-2xl font-bold text-cyber-cyan/80" aria-label={`ランキング${index + 1}位`}>
+                    {index + 1}
+                  </span>
+                </div>
+                <a href={`/p/${person.slug}`} className="w-20 h-20 flex-shrink-0 relative overflow-hidden block rounded-sm border border-slate-200">
+                  {person.image_url ? (
+                    <img
+                      src={person.image_url}
+                      alt={person.image_alt || person.name_ja}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-cyber-dark to-cyber-darker" />
+                  )}
                 </a>
-                {article.excerpt && (
-                  <p className="text-sm text-[#666] leading-relaxed">{article.excerpt}</p>
-                )}
-                {article.published_at && (
-                  <time className="text-xs text-[#999] mt-2 block">
-                    {new Date(article.published_at).toLocaleDateString('ja-JP')}
-                  </time>
-                )}
+                <div className="flex-1">
+                  <a href={`/p/${person.slug}`} className="hover:text-cyber-cyan transition-colors">
+                    <h3 className="font-bold mb-1 text-slate-800">{person.name_ja}</h3>
+                  </a>
+                  <p className="text-sm text-slate-500 mb-2">{person.title}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(person.tags || []).map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-xs text-slate-600 border border-slate-200 px-2 py-0.5 rounded"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  {person.bio_short && (
+                    <p className="text-sm text-slate-500 mt-2 line-clamp-2">{person.bio_short}</p>
+                  )}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-sm text-slate-500 mb-1">Total Score</div>
+                  <div className="font-display text-3xl font-bold text-cyber-cyan">{person.score_total}</div>
+                </div>
               </article>
             ))}
           </div>
         </section>
-      )}
 
-      {/* Detailed Person Info Section - Full content for LLM */}
-      <section>
-        <h2 className="text-2xl font-bold mb-6">{category.name_ja}詳細情報</h2>
-        <div className="space-y-8">
-          {sortedPeople.slice(0, 10).map((person) => (
-            <article key={person.id} className="border-b border-[#e5e5e5] pb-8">
-              <h3 className="text-xl font-bold mb-2">
-                <a href={`/p/${person.slug}`} className="hover:text-[#1e3a8a]">
-                  {person.name_ja}
-                </a>
-              </h3>
-              <p className="text-[#666] mb-2">{person.title}</p>
-              {person.bio_short && (
-                <p className="text-[#888] leading-relaxed mb-3">{person.bio_short}</p>
-              )}
-              {person.editorial && (
-                <div className="bg-[#fafafa] p-4 text-sm text-[#666] leading-relaxed">
-                  <strong className="block mb-2">編集部コメント:</strong>
-                  {person.editorial}
-                </div>
-              )}
-              <div className="mt-3 text-sm">
-                <strong>スコア:</strong> {person.score_total}点
-                {person.tags.length > 0 && (
-                  <span className="ml-4">
-                    <strong>タグ:</strong> {person.tags.join('、')}
-                  </span>
+        {/* Related Articles */}
+        {articles.length > 0 && (
+          <section className="mb-20">
+            <h2 className="font-display text-2xl font-bold mb-8 text-cyber-cyan">
+              — {category.name_ja}関連記事 —
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {articles.map((article) => (
+                <article key={article.id} className="glass p-6 rounded-sm hover:border-indigo-300 transition-all duration-300">
+                  <a href={`/article/${article.slug}`}>
+                    <h3 className="font-bold text-lg mb-2 text-slate-800 hover:text-indigo-600 transition-colors">{article.title}</h3>
+                  </a>
+                  {article.excerpt && (
+                    <p className="text-sm text-slate-500 leading-relaxed">{article.excerpt}</p>
+                  )}
+                  {article.published_at && (
+                    <time className="text-xs text-slate-500 mt-2 block">
+                      {new Date(article.published_at).toLocaleDateString('ja-JP')}
+                    </time>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Detailed Person Info Section */}
+        <section>
+          <h2 className="font-display text-2xl font-bold mb-8 text-cyber-cyan">
+            — {category.name_ja}詳細情報 —
+          </h2>
+          <div className="space-y-8">
+            {sortedPeople.slice(0, 10).map((person) => (
+              <article key={person.id} className="pb-8 border-b border-slate-200 last:border-0">
+                <h3 className="text-xl font-bold mb-2">
+                  <a href={`/p/${person.slug}`} className="text-slate-800 hover:text-indigo-600 transition-colors">
+                    {person.name_ja}
+                  </a>
+                </h3>
+                <p className="text-slate-500 mb-2">{person.title}</p>
+                {person.bio_short && (
+                  <p className="text-slate-500 leading-relaxed mb-3">{person.bio_short}</p>
                 )}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+                {person.editorial && (
+                  <div className="glass p-4 text-sm text-slate-600 leading-relaxed rounded-sm">
+                    <strong className="block mb-2 text-cyber-cyan">編集部コメント:</strong>
+                    {person.editorial}
+                  </div>
+                )}
+                <div className="mt-3 text-sm text-slate-500">
+                  <strong>スコア:</strong> <span className="text-cyber-cyan font-mono">{person.score_total}</span>点
+                  {(person.tags || []).length > 0 && (
+                    <span className="ml-4">
+                      <strong>タグ:</strong> {(person.tags || []).join('、')}
+                    </span>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

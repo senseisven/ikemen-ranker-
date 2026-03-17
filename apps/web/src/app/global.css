@@ -1,10 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --cyber-cyan: #0891b2;
+  --cyber-purple: #6366f1;
+  --cyber-pink: #be185d;
+  --cyber-dark: #f1f5f9;
+  --cyber-darker: #f8fafc;
+}
+
 @layer base {
   input, textarea, select, button {
     @apply outline-none focus:outline-none;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
@@ -114,4 +131,24 @@
 .prose pre code {
   background: none;
   padding: 0;
+}
+
+/* Futuristic UI utilities */
+@layer utilities {
+  .text-gradient-neon {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-cyber-cyan via-cyber-purple to-cyber-pink;
+  }
+  .border-gradient {
+    border: 1px solid transparent;
+    background: linear-gradient(white, white) padding-box,
+      linear-gradient(135deg, var(--cyber-cyan), var(--cyber-purple), var(--cyber-pink)) border-box;
+    background-clip: padding-box, border-box;
+    background-origin: padding-box, border-box;
+  }
+  .glass {
+    @apply bg-white border border-slate-200 shadow-sm;
+  }
+  .glass-hover:hover {
+    @apply border-cyber-cyan/40 shadow-neon;
+  }
 }
