@@ -1,3 +1,4 @@
+import { useLoaderData } from "react-router";
 import { getArticleBySlug, getArticles } from "@/lib/supabase";
 
 export async function loader({ params }) {
@@ -25,7 +26,8 @@ export function meta({ data }) {
   ];
 }
 
-export default function ArticlePage({ loaderData }) {
+export default function ArticlePage() {
+  const loaderData = useLoaderData();
   const article = loaderData?.article;
 
   if (!article) {

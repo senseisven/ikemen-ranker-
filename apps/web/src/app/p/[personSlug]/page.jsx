@@ -1,3 +1,4 @@
+import { useLoaderData } from "react-router";
 import {
   getPersonBySlug,
   getRelatedPeople,
@@ -41,7 +42,8 @@ export function meta({ data }) {
   ];
 }
 
-export default function PersonPage({ loaderData }) {
+export default function PersonPage() {
+  const loaderData = useLoaderData();
   const person = loaderData?.person;
 
   if (!person) {

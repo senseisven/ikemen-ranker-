@@ -6,7 +6,6 @@ import {
   useEffect,
   type ReactNode,
   type SyntheticEvent,
-  useCallback,
   useRef,
   type RefObject,
 } from 'react';
@@ -87,57 +86,13 @@ const CreatePolymorphicComponent = forwardRef(
         : rest;
     const ref = useOptionalRef(forwardedRef);
 
-    // If a grid placeholder is active, regenerate it on resize
+    // Only handle <img> fallbacks here. Do not probe CSS background-image on arbitrary
+    // elements: after hydration that could replace gradients (e.g. text-gradient-neon /
+    // bg-clip-text) with the grid placeholder and make the page look "corrupt".
     useEffect(() => {
+      if (as !== 'img') return;
       const el = ref && 'current' in (ref as any) ? (ref as any).current : null;
-      if (!el) return;
-      if (as !== 'img') {
-        const placeholder = () => {
-          const { width, height } = el.getBoundingClientRect();
-          return buildGridPlaceholder(Math.round(width) || 128, Math.round(height) || 128);
-        };
-
-        const applyBgFallback = () => {
-          el.dataset.hasFallback = '1';
-          el.style.backgroundImage = `url("${placeholder()}")`;
-          el.style.backgroundSize = 'cover';
-        };
-
-        const probeBg = () => {
-          const bg = getComputedStyle(el).backgroundImage;
-          const match = /url\(["']?(.+?)["']?\)/.exec(bg);
-          const src = match?.[1];
-          if (!src) return;
-
-          const probe = new Image();
-          probe.onerror = applyBgFallback;
-          probe.src = src;
-        };
-
-        probeBg();
-
-        const ro = new ResizeObserver(([entry]) => {
-          if (!el.dataset.hasFallback) return;
-          const { width, height } = entry.contentRect;
-          el.style.backgroundImage = `url("${buildGridPlaceholder(
-            Math.round(width) || 128,
-            Math.round(height) || 128
-          )}")`;
-        });
-        ro.observe(el);
-
-        const mo = new MutationObserver(probeBg);
-        mo.observe(el, {
-          attributes: true,
-          attributeFilter: ['style', 'class'],
-        });
-
-        return () => {
-          ro.disconnect();
-          mo.disconnect();
-        };
-      }
-      if (!el.dataset.hasFallback) return;
+      if (!el || !el.dataset.hasFallback) return;
 
       const ro = new ResizeObserver(([entry]) => {
         const { width, height } = entry.contentRect;

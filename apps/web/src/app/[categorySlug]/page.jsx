@@ -4,6 +4,7 @@ import {
   getTagsByCategory,
   getArticles,
 } from "@/lib/supabase";
+import { useLoaderData } from "react-router";
 
 export async function loader({ params }) {
   const categorySlug = params?.categorySlug;
@@ -39,7 +40,8 @@ export function meta({ data }) {
   ];
 }
 
-export default function CategoryPage({ loaderData }) {
+export default function CategoryPage() {
+  const loaderData = useLoaderData();
   const category = loaderData?.category;
 
   if (!category) {

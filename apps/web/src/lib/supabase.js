@@ -220,6 +220,17 @@ export async function getTopInCategory(categoryId, limit = 5) {
   }));
 }
 
+export async function getRankingsByCategory(limit = 5) {
+  const categories = await getCategories();
+  const results = await Promise.all(
+    categories.map(async (cat) => ({
+      category: cat,
+      people: await getTopInCategory(cat.id, limit),
+    }))
+  );
+  return results;
+}
+
 // ============================================
 // TAGS
 // ============================================

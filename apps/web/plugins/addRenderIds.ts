@@ -5,11 +5,20 @@ import type { JSXElement } from '@babel/types';
 import type * as t from '@babel/types';
 
 import { createHash } from 'node:crypto';
-function genId(file: string, loc: { line: number; col: number }) {
-  return `render-${createHash('sha1')
-    .update(`${file}:${loc.line}:${loc.col}`)
-    .digest('hex')
-    .slice(0, 8)}`;
+
+/** Same logical file must hash the same on SSR, client, and HMR (ignore ?t= / ?noLayout). */
+function stableModuleKey(viteId: string): string {
+  const pathOnly = viteId.split('?')[0].replace(/\\/g, '/');
+  const idx = pathOnly.indexOf('/src/');
+  return idx >= 0 ? pathOnly.slice(idx + 1) : pathOnly;
+}
+
+function genId(stableKey: string, loc: { line: number; col: number }, syntheticOrdinal?: number) {
+  const basis =
+    syntheticOrdinal != null
+      ? `${stableKey}:synthetic:${syntheticOrdinal}`
+      : `${stableKey}:${loc.line}:${loc.col}`;
+  return `render-${createHash('sha1').update(basis).digest('hex').slice(0, 8)}`;
 }
 
 export interface BabelAPI {
@@ -18,7 +27,13 @@ export interface BabelAPI {
 const idToJsx = { current: {} as Record<string, { code: string }> };
 
 const getRenderIdVisitor =
-  ({ filename }: { filename: string }) =>
+  ({
+    stableKey,
+    nextSynthetic,
+  }: {
+    stableKey: string;
+    nextSynthetic: () => number;
+  }) =>
   (api: BabelAPI): PluginObj => {
     const { types: t } = api;
 
@@ -69,14 +84,11 @@ const getRenderIdVisitor =
               attr.name.name === 'renderId'
           );
           if (hasRenderId) return;
-          const start = path.node.loc?.start ?? {
-            line: Math.floor(Math.random() * 1000),
-            column: Math.floor(Math.random() * 100),
-          };
-          const renderId = genId(filename, {
-            line: start.line,
-            col: start.column,
-          });
+
+          const locStart = path.node.loc?.start;
+          const renderId = locStart
+            ? genId(stableKey, { line: locStart.line, col: locStart.column })
+            : genId(stableKey, { line: 0, col: 0 }, nextSynthetic());
 
           // Ensure PolymorphicComponent import exists at top‑level
           const program = path.findParent((p) => p.isProgram());
@@ -145,13 +157,17 @@ export function addRenderIds(): PluginOption {
     name: 'add-render-ids',
     enforce: 'pre',
     async transform(code, id) {
-      // need all module files AND the noLayout query (layout wrapper plugin)
-      if (!/\.([cm]?[jt]sx)(\?noLayout)?$/.test(id)) {
+      // Strip query (?t= HMR, ?noLayout.jsx) so we always transform the module.
+      const pathOnly = id.split('?')[0];
+      if (!/\.([cm]?[jt]sx)$/.test(pathOnly)) {
         return null;
       }
-      if (!id.includes('apps/web/src/')) {
+      if (!id.includes('apps/web/src/') && !pathOnly.includes('/src/')) {
         return null;
       }
+
+      let syntheticOrdinal = 0;
+      const stableKey = stableModuleKey(id);
 
       const result = await babel.transformAsync(code, {
         filename: id,
@@ -159,7 +175,12 @@ export function addRenderIds(): PluginOption {
         babelrc: false,
         configFile: false,
         presets: [['@babel/preset-react', { runtime: 'automatic' }], '@babel/preset-typescript'],
-        plugins: [getRenderIdVisitor({ filename: id })],
+        plugins: [
+          getRenderIdVisitor({
+            stableKey,
+            nextSynthetic: () => syntheticOrdinal++,
+          }),
+        ],
       });
 
       if (!result) return null;

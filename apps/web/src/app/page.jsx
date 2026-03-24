@@ -1,4 +1,5 @@
-import { getCategories, getWeeklyPicks, getLatestPeople, getTopPeople } from "@/lib/supabase";
+import { getCategories, getWeeklyPicks, getLatestPeople, getRankingsByCategory } from "@/lib/supabase";
+import { useLoaderData } from "react-router";
 
 export function meta() {
   return [
@@ -14,39 +15,41 @@ export function meta() {
 
 export async function loader() {
   try {
-    const [categories, weeklyPicks, latest, topRanked] = await Promise.all([
-      getCategories(),
+    const [categoryRankings, weeklyPicks, latest] = await Promise.all([
+      getRankingsByCategory(5),
       getWeeklyPicks(5),
       getLatestPeople(10),
-      getTopPeople(10),
     ]);
+
+    const categories = categoryRankings.map(r => r.category);
 
     return {
       categories: categories ?? [],
+      categoryRankings: categoryRankings ?? [],
       weeklyPicks: weeklyPicks ?? [],
       latest: latest ?? [],
-      topRanked: topRanked ?? [],
       loadError: null,
     };
   } catch (err) {
     console.error('Supabase loader error:', err);
     return {
       categories: [],
+      categoryRankings: [],
       weeklyPicks: [],
       latest: [],
-      topRanked: [],
       loadError: err?.message || String(err),
     };
   }
 }
 
-export default function HomePage({ loaderData }) {
+export default function HomePage() {
+  const loaderData = useLoaderData();
   const categories = loaderData?.categories ?? [];
+  const categoryRankings = loaderData?.categoryRankings ?? [];
   const weeklyPicks = loaderData?.weeklyPicks ?? [];
   const latest = loaderData?.latest ?? [];
-  const topRanked = loaderData?.topRanked ?? [];
   const loadError = loaderData?.loadError;
-  const hasNoData = categories.length === 0 && topRanked.length === 0 && latest.length === 0;
+  const hasNoData = categories.length === 0 && categoryRankings.length === 0 && latest.length === 0;
 
   // JSON-LD structured data for SEO/LLM
   const structuredData = {
@@ -154,89 +157,65 @@ export default function HomePage({ loaderData }) {
         </section>
       )}
 
-      {/* Current Rankings Section */}
-      <section className="max-w-[1200px] mx-auto px-6 py-20 border-b border-slate-200">
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-px bg-gradient-to-r from-transparent to-indigo-400" />
-            <span className="text-xs uppercase tracking-[0.2em] text-indigo-600 font-display">Top 10</span>
-            <div className="flex-1 h-px bg-gradient-to-l from-transparent to-indigo-400" />
-          </div>
-          <h2 className="font-display text-2xl md:text-3xl font-bold text-indigo-600 tracking-wide">
-            — 現在のランキング —
-          </h2>
-          <p className="mt-2 text-slate-500 text-sm">
-            全カテゴリを通じたスコア上位 {topRanked.length > 0 ? `${topRanked.length} 名` : '（データなし）'}
-          </p>
-        </div>
-        {topRanked.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-            {topRanked.map((person, index) => (
-              <article key={person.id}>
-                <a href={`/p/${person.slug}`} className="group block">
-                  <div className="aspect-[3/4] mb-4 relative overflow-hidden rounded-sm border border-slate-200 group-hover:border-indigo-300 transition-all duration-300 bg-white shadow-sm">
-                    <div className="absolute top-2 left-2 z-10 font-display text-xl font-bold text-indigo-600 bg-white/95 px-2 py-0.5 rounded shadow-sm">
-                      {index + 1}
-                    </div>
-                    {person.image_url ? (
-                      <img
-                        src={person.image_url}
-                        alt={person.image_alt || person.name_ja}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-slate-100" />
-                    )}
-                  </div>
-                  <h3 className="font-bold text-sm mb-1 text-slate-800">{person.name_ja}</h3>
-                  <p className="text-xs text-slate-600">{person.title}</p>
-                  <p className="text-xs text-indigo-600 mt-1 font-mono font-semibold">
-                    Score: {person.score_total}
-                  </p>
-                  {person.category?.name_ja && (
-                    <p className="text-xs text-slate-500 mt-0.5">{person.category.name_ja}</p>
-                  )}
-                </a>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="text-slate-500 text-sm py-8">ランキングデータがありません。<a href="/admin" className="text-indigo-600 hover:underline">管理画面</a>から人物を追加してください。</p>
-        )}
-      </section>
-
-      {/* Categories Section */}
-      <section className="max-w-[1200px] mx-auto px-6 py-20">
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-px bg-gradient-to-r from-transparent to-indigo-400" />
-            <span className="text-xs uppercase tracking-[0.2em] text-indigo-600 font-display">分野</span>
-            <div className="flex-1 h-px bg-gradient-to-l from-transparent to-indigo-400" />
-          </div>
-          <h2 className="font-display text-2xl md:text-3xl font-bold text-indigo-600 tracking-wide">
-            — カテゴリ —
-          </h2>
-          <p className="mt-2 text-slate-500 text-sm">
-            分野別にランキングを閲覧。スタートアップ、エンタメ、スポーツなど {categories.length} カテゴリ
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories.map((cat) => (
+      {/* Per-Category Rankings */}
+      {categoryRankings.map(({ category: cat, people }) => (
+        <section key={cat.id} className="max-w-[1200px] mx-auto px-6 py-16 border-b border-slate-200">
+          <div className="mb-8 flex items-end justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-px bg-gradient-to-r from-transparent to-indigo-400" />
+                <span className="text-xs uppercase tracking-[0.2em] text-indigo-600 font-display">Ranking</span>
+                <div className="flex-1 h-px bg-gradient-to-l from-transparent to-indigo-400" />
+              </div>
+              <h2 className="font-display text-2xl md:text-3xl font-bold text-indigo-600 tracking-wide">
+                — {cat.name_ja} —
+              </h2>
+              {cat.description && (
+                <p className="mt-2 text-slate-500 text-sm max-w-[600px]">{cat.description}</p>
+              )}
+            </div>
             <a
-              key={cat.id}
               href={`/${cat.slug}`}
-              className="group bg-white p-6 rounded-sm border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-300 shadow-sm"
+              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap transition-colors"
             >
-              <div className="w-10 h-0.5 bg-gradient-to-r from-indigo-500 to-indigo-400 mb-4" />
-              <h3 className="font-display font-bold text-lg mb-2 text-slate-800 group-hover:text-indigo-600 transition-colors">{cat.name_ja}</h3>
-              <p className="text-sm text-slate-600 leading-relaxed line-clamp-3 group-hover:text-slate-700 transition-colors">
-                {cat.description}
-              </p>
+              すべて見る →
             </a>
-          ))}
-        </div>
-      </section>
+          </div>
+
+          {people.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+              {people.map((person, index) => (
+                <article key={person.id}>
+                  <a href={`/p/${person.slug}`} className="group block">
+                    <div className="aspect-[3/4] mb-4 relative overflow-hidden rounded-sm border border-slate-200 group-hover:border-indigo-300 transition-all duration-300 bg-white shadow-sm">
+                      <div className="absolute top-2 left-2 z-10 font-display text-xl font-bold text-indigo-600 bg-white/95 px-2 py-0.5 rounded shadow-sm">
+                        {index + 1}
+                      </div>
+                      {person.image_url ? (
+                        <img
+                          src={person.image_url}
+                          alt={person.image_alt || person.name_ja}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-slate-100" />
+                      )}
+                    </div>
+                    <h3 className="font-bold text-sm mb-1 text-slate-800">{person.name_ja}</h3>
+                    <p className="text-xs text-slate-600">{person.title}</p>
+                    <p className="text-xs text-indigo-600 mt-1 font-mono font-semibold">
+                      Score: {person.score_total}
+                    </p>
+                  </a>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate-500 text-sm py-4">このカテゴリにはまだ登録がありません。</p>
+          )}
+        </section>
+      ))}
 
       {/* Weekly Picks Section */}
       {weeklyPicks.length > 0 && (

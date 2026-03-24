@@ -1,11 +1,11 @@
 module.exports = {
 	content: ['./src/**/*.{js,ts,jsx,tsx}'],
 	theme: {
-		fontFamily: {
-			sans: ['Space Grotesk', 'Inter', 'sans-serif'],
-			display: ['Orbitron', 'monospace'],
-		},
 		extend: {
+			fontFamily: {
+				sans: ['Space Grotesk', 'Inter', 'sans-serif'],
+				display: ['Orbitron', 'monospace'],
+			},
 			colors: {
 				cyber: {
 					cyan: '#0891b2',

@@ -133,8 +133,10 @@ export function layoutWrapperPlugin(userOpts: HierarchicalLayoutOptions = {}): P
       }
     });
 
+    const pageSpecifier = JSON.stringify(pagePath + NO_LAYOUT_QUERY);
+
     // import the actual page with a flag to skip re-wrapping
-    imports.push(`import Page from ${JSON.stringify(pagePath + NO_LAYOUT_QUERY)};`);
+    imports.push(`import Page from ${pageSpecifier};`);
 
     if (routeParams.length > 0) {
       imports.push(
@@ -142,9 +144,24 @@ export function layoutWrapperPlugin(userOpts: HierarchicalLayoutOptions = {}): P
       );
     }
 
+    // Detect named exports in the original source so React Router's static
+    // analysis (es-module-lexer) sees them as explicit re-exports.
+    const ROUTE_EXPORTS = [
+      'loader', 'action', 'meta', 'links', 'handle',
+      'shouldRevalidate', 'headers', 'ErrorBoundary', 'HydrateFallback',
+    ];
+    const pageSource = fs.readFileSync(pagePath, 'utf-8');
+    const detected = ROUTE_EXPORTS.filter((name) =>
+      new RegExp(`export\\s+(async\\s+)?(function|const|let|var)\\s+${name}\\b`).test(pageSource)
+    );
+    const reexportLine = detected.length > 0
+      ? `export { ${detected.join(', ')} } from ${pageSpecifier};`
+      : '';
+
     /* ---------- module body ---------- */
     return `
 ${imports.join('\n')}
+${reexportLine}
 
 export default function WrappedPage(props) {
   ${routeParams.length > 0 ? 'const params = useParams();' : ''}
