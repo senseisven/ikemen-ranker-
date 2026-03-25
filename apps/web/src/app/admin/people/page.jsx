@@ -8,6 +8,7 @@ import {
   adminCreatePerson,
   adminUpdatePerson,
   adminDeletePerson,
+  uploadPersonImage,
 } from "@/lib/supabase";
 
 export default function AdminPeople() {
@@ -18,6 +19,10 @@ export default function AdminPeople() {
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [formData, setFormData] = useState({
     slug: "",
     category_id: "",
@@ -83,8 +88,17 @@ export default function AdminPeople() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      setUploading(true);
+      let imageUrl = formData.image_url;
+
+      if (imageFile) {
+        const slug = formData.slug || `person-${Date.now()}`;
+        imageUrl = await uploadPersonImage(imageFile, slug);
+      }
+
       const dataToSave = {
         ...formData,
+        image_url: imageUrl,
         score_total: calculateTotal(),
       };
 
@@ -98,6 +112,8 @@ export default function AdminPeople() {
     } catch (error) {
       console.error("Failed to save person:", error);
       alert("保存に失敗しました: " + error.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -135,6 +151,8 @@ export default function AdminPeople() {
       .map((t) => t.id);
     setSelectedTags(tagIds);
     
+    setImageFile(null);
+    setImagePreview(person.image_url || null);
     setEditingId(person.id);
     setShowForm(true);
   };
@@ -185,6 +203,8 @@ export default function AdminPeople() {
       meta_description: "",
     });
     setSelectedTags([]);
+    setImageFile(null);
+    setImagePreview(null);
     setEditingId(null);
     setShowForm(false);
   };
@@ -402,26 +422,118 @@ export default function AdminPeople() {
                 {/* Image */}
                 <div className="space-y-4">
                   <h3 className="font-bold text-sm text-[#666] border-b pb-2">画像</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">画像URL</label>
-                      <input
-                        type="url"
-                        value={formData.image_url}
-                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                        placeholder="https://..."
-                      />
+
+                  <div className="grid grid-cols-[1fr_200px] gap-6">
+                    <div className="space-y-4">
+                      {/* Drop zone */}
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setDragOver(false);
+                          const file = e.dataTransfer.files?.[0];
+                          if (file && file.type.startsWith('image/')) {
+                            setImageFile(file);
+                            setImagePreview(URL.createObjectURL(file));
+                          }
+                        }}
+                        onClick={() => document.getElementById('person-image-input')?.click()}
+                        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                          dragOver
+                            ? 'border-[#1e3a8a] bg-blue-50'
+                            : 'border-[#d1d5db] hover:border-[#1e3a8a] hover:bg-[#fafafa]'
+                        }`}
+                      >
+                        <input
+                          id="person-image-input"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setImageFile(file);
+                              setImagePreview(URL.createObjectURL(file));
+                            }
+                          }}
+                        />
+                        <div className="text-[#666] text-sm">
+                          <p className="font-medium mb-1">
+                            画像をドラッグ＆ドロップ、またはクリックして選択
+                          </p>
+                          <p className="text-xs text-[#999]">
+                            JPEG / PNG / WebP / GIF（最大5MB）
+                          </p>
+                        </div>
+                        {imageFile && (
+                          <p className="mt-2 text-xs text-[#1e3a8a] font-medium">
+                            選択中: {imageFile.name}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Manual URL fallback */}
+                      <div>
+                        <label className="block text-sm font-medium mb-1">
+                          または画像URLを直接入力
+                        </label>
+                        <input
+                          type="url"
+                          value={formData.image_url}
+                          onChange={(e) => {
+                            setFormData({ ...formData, image_url: e.target.value });
+                            if (e.target.value) {
+                              setImagePreview(e.target.value);
+                              setImageFile(null);
+                            }
+                          }}
+                          className="w-full border border-[#e5e5e5] px-3 py-2"
+                          placeholder="https://..."
+                          disabled={!!imageFile}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1">画像Alt</label>
+                        <input
+                          type="text"
+                          value={formData.image_alt}
+                          onChange={(e) => setFormData({ ...formData, image_alt: e.target.value })}
+                          className="w-full border border-[#e5e5e5] px-3 py-2"
+                          placeholder="山本剛志"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">画像Alt</label>
-                      <input
-                        type="text"
-                        value={formData.image_alt}
-                        onChange={(e) => setFormData({ ...formData, image_alt: e.target.value })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                        placeholder="山本剛志"
-                      />
+
+                    {/* Preview */}
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-xs text-[#666] font-medium">プレビュー</span>
+                      {imagePreview ? (
+                        <div className="relative">
+                          <img
+                            src={imagePreview}
+                            alt="プレビュー"
+                            className="w-[180px] h-[180px] object-cover rounded-lg border border-[#e5e5e5]"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setImageFile(null);
+                              setImagePreview(null);
+                              setFormData({ ...formData, image_url: '' });
+                            }}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-[180px] h-[180px] bg-[#f5f5f5] border border-[#e5e5e5] rounded-lg flex items-center justify-center">
+                          <span className="text-[#ccc] text-3xl">📷</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -528,9 +640,10 @@ export default function AdminPeople() {
                 <div className="flex gap-4 pt-4 border-t">
                   <button
                     type="submit"
-                    className="bg-[#1e3a8a] text-white px-6 py-2 hover:bg-[#15296b]"
+                    disabled={uploading}
+                    className="bg-[#1e3a8a] text-white px-6 py-2 hover:bg-[#15296b] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    保存
+                    {uploading ? '保存中...' : '保存'}
                   </button>
                   <button
                     type="button"
@@ -561,9 +674,22 @@ export default function AdminPeople() {
               {people.map((person) => (
                 <tr key={person.id} className="border-b border-[#e5e5e5] last:border-b-0">
                   <td className="px-4 py-3">
-                    <div>
-                      <div className="font-medium">{person.name_ja}</div>
-                      <div className="text-xs text-[#666]">{person.title}</div>
+                    <div className="flex items-center gap-3">
+                      {person.image_url ? (
+                        <img
+                          src={person.image_url}
+                          alt={person.name_ja}
+                          className="w-10 h-10 rounded-full object-cover border border-[#e5e5e5] flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#f0f0f0] border border-[#e5e5e5] flex items-center justify-center flex-shrink-0">
+                          <span className="text-[#ccc] text-sm">👤</span>
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-medium">{person.name_ja}</div>
+                        <div className="text-xs text-[#666]">{person.title}</div>
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm">{person.category?.name_ja}</td>

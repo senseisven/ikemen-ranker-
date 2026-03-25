@@ -546,3 +546,40 @@ export async function adminDeleteArticle(id) {
   
   if (error) throw error;
 }
+
+// ============================================
+// PERSON IMAGE UPLOAD (Supabase Storage)
+// ============================================
+
+const PERSON_IMAGES_BUCKET = 'person-images';
+
+async function ensurePersonImagesBucket() {
+  const { data: buckets } = await supabase.storage.listBuckets();
+  if (buckets?.some(b => b.name === PERSON_IMAGES_BUCKET)) return;
+
+  const { error } = await supabase.storage.createBucket(PERSON_IMAGES_BUCKET, {
+    public: true,
+    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+    fileSizeLimit: 5 * 1024 * 1024,
+  });
+  if (error && !error.message?.includes('already exists')) throw error;
+}
+
+export async function uploadPersonImage(file, personSlug) {
+  await ensurePersonImagesBucket();
+
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const filePath = `${personSlug}-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(PERSON_IMAGES_BUCKET)
+    .upload(filePath, file, { cacheControl: '31536000', upsert: false });
+
+  if (uploadError) throw uploadError;
+
+  const { data: urlData } = supabase.storage
+    .from(PERSON_IMAGES_BUCKET)
+    .getPublicUrl(filePath);
+
+  return urlData.publicUrl;
+}

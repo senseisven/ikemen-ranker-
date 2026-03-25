@@ -242,7 +242,7 @@ type ClientOnlyProps = {
   loader: () => React.ReactNode;
 };
 
-export const ClientOnly: React.FC<ClientOnlyProps> = ({ loader }) => {
+const ClientOnly: React.FC<ClientOnlyProps> = ({ loader }) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -258,64 +258,53 @@ export const ClientOnly: React.FC<ClientOnlyProps> = ({ loader }) => {
   );
 };
 
-/**
- * useHmrConnection()
- * ------------------
- * • `true`  → HMR socket is healthy
- * • `false` → socket lost (Vite is polling / may auto‑reload soon)
- *
- * Works only in dev; in prod it always returns `true`.
- */
-export function useHmrConnection(): boolean {
-  const [connected, setConnected] = useState(() => !!import.meta.hot);
+/** Vite HMR WebSocket is up; updated from module‑level listeners (no React state). */
+let hmrSocketHealthy = true;
+const healthyResponseType = 'sandbox:web:healthcheck:response';
 
-  useEffect(() => {
-    // No HMR object outside dev builds
-    if (!import.meta.hot) return;
-
-    /** Fired the moment the WS closes unexpectedly */
-    const onDisconnect = () => setConnected(false);
-    /** Fired every time the WS (re‑)opens */
-    const onConnect = () => setConnected(true);
-
-    import.meta.hot.on('vite:ws:disconnect', onDisconnect);
-    import.meta.hot.on('vite:ws:connect', onConnect);
-
-    // Optional: catch the “about to full‑reload” event as a last resort
-    const onFullReload = () => setConnected(false);
-    import.meta.hot.on('vite:beforeFullReload', onFullReload);
-
-    return () => {
-      import.meta.hot?.off('vite:ws:disconnect', onDisconnect);
-      import.meta.hot?.off('vite:ws:connect', onConnect);
-      import.meta.hot?.off('vite:beforeFullReload', onFullReload);
-    };
-  }, []);
-
-  return connected;
+function postSandboxHealthToParent() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.parent?.postMessage(
+      { type: healthyResponseType, healthy: hmrSocketHealthy },
+      '*'
+    );
+  } catch {
+    /* ignore */
+  }
 }
 
-const healthyResponseType = 'sandbox:web:healthcheck:response';
+if (import.meta.hot) {
+  import.meta.hot.on('vite:ws:disconnect', () => {
+    hmrSocketHealthy = false;
+    postSandboxHealthToParent();
+  });
+  import.meta.hot.on('vite:ws:connect', () => {
+    hmrSocketHealthy = true;
+    postSandboxHealthToParent();
+  });
+  import.meta.hot.on('vite:beforeFullReload', () => {
+    hmrSocketHealthy = false;
+    postSandboxHealthToParent();
+  });
+}
+
 const useHandshakeParent = () => {
-  const isHmrConnected = useHmrConnection();
   useEffect(() => {
-    const healthyResponse = {
-      type: healthyResponseType,
-      healthy: isHmrConnected,
-    };
     const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === 'sandbox:web:healthcheck') {
-        window.parent.postMessage(healthyResponse, '*');
+      if (event.data?.type === 'sandbox:web:healthcheck') {
+        window.parent.postMessage(
+          { type: healthyResponseType, healthy: hmrSocketHealthy },
+          '*'
+        );
       }
     };
     window.addEventListener('message', handleMessage);
-    // Immediately respond to the parent window with a healthy response in
-    // case we missed the healthcheck message
-    window.parent.postMessage(healthyResponse, '*');
+    postSandboxHealthToParent();
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [isHmrConnected]);
+  }, []);
 };
 
 const useCodeGen = () => {
@@ -392,7 +381,7 @@ const waitForScreenshotReady = async () => {
   await new Promise((resolve) => setTimeout(resolve, 250));
 };
 
-export const useHandleScreenshotRequest = () => {
+const useHandleScreenshotRequest = () => {
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
       if (event.data.type === 'sandbox:web:screenshot:request') {

@@ -1,22 +1,25 @@
-'use client';
+import { useEffect, useRef } from 'react';
 
-import { useIdleTimer } from 'react-idle-timer';
+const THROTTLE_MS = 60_000 * 3;
 
+/**
+ * Ping `/` on user activity (throttled) so a proxied dev session stays warm.
+ * Implemented without react-idle-timer to keep the root layout hook stack small and SSR-safe.
+ */
 export function useDevServerHeartbeat() {
-  useIdleTimer({
-    throttle: 60_000 * 3,
-    timeout: 60_000,
-    onAction: () => {
-      // HACK: at time of writing, we run the dev server on a proxy url that
-      // when requested, ensures that the dev server's life is extended. If
-      // the user is using a page or is active in it in the app, but when the
-      // user has popped out their preview, they no longer can rely on the
-      // app to do this. This hook ensures it stays alive.
-      fetch('/', {
-        method: 'GET',
-      }).catch((error) => {
-        // this is a no-op, we just want to keep the dev server alive
-      });
-    },
-  });
+  const lastPing = useRef(0);
+
+  useEffect(() => {
+    const ping = () => {
+      const now = Date.now();
+      if (now - lastPing.current < THROTTLE_MS) return;
+      lastPing.current = now;
+      fetch('/', { method: 'GET' }).catch(() => {});
+    };
+
+    const events = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'] as const;
+    const opts: AddEventListenerOptions = { passive: true, capture: true };
+    events.forEach((e) => window.addEventListener(e, ping, opts));
+    return () => events.forEach((e) => window.removeEventListener(e, ping, opts));
+  }, []);
 }
