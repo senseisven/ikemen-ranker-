@@ -24,7 +24,6 @@ import './global.css';
 
 import { toPng } from 'html-to-image';
 import fetch from '@/__create/fetch';
-// @ts-ignore
 import { SessionProvider } from '@auth/create/react';
 import { useNavigate } from 'react-router';
 import { serializeError } from 'serialize-error';
@@ -34,6 +33,12 @@ import { useSandboxStore } from '../__create/hmr-sandbox-store';
 import type { Route } from './+types/root';
 import { useDevServerHeartbeat } from '../__create/useDevServerHeartbeat';
 import { getCategories } from '@/lib/supabase';
+
+type CategoryNav = {
+  id: string;
+  slug: string;
+  name_ja: string;
+};
 
 export const links = () => [];
 
@@ -491,7 +496,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
 export default function App() {
   const data = useLoaderData() as Awaited<ReturnType<typeof loader>>;
-  const categories = data?.categories ?? [];
+  const categories: CategoryNav[] = (data?.categories ?? []) as CategoryNav[];
 
   return (
     <SessionProvider>
@@ -502,7 +507,7 @@ export default function App() {
               イケメン名鑑
             </a>
             <div className="flex gap-6 md:gap-8 text-sm">
-              {categories.slice(0, 6).map((cat: any) => (
+              {categories.slice(0, 6).map((cat) => (
                 <a
                   key={cat.id}
                   href={`/${cat.slug}`}
@@ -538,7 +543,7 @@ export default function App() {
             <div>
               <h3 className="font-display font-bold mb-4 text-indigo-600">カテゴリ</h3>
               <nav className="flex flex-col gap-2 text-sm" aria-label="カテゴリナビゲーション">
-                {categories.map((cat: any) => (
+                {categories.map((cat) => (
                   <a
                     key={cat.id}
                     href={`/${cat.slug}`}

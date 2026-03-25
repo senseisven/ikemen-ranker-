@@ -42,7 +42,7 @@ const getRenderIdVisitor =
         JSXElement(path: NodePath<JSXElement>) {
           const opening = path.node.openingElement;
 
-          // We only care about <tag> where tag is lowercase (HTML intrinsic)
+          // We only care about <tag> where tag is lowercase (HTML intrinsic)
           if (!t.isJSXIdentifier(opening.name)) return;
           const tagName = opening.name.name;
           if (tagName !== tagName.toLowerCase()) return; // skip components

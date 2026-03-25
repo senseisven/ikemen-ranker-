@@ -62,7 +62,8 @@ function useOptionalRef<T>(ref?: Ref<T> | null): RefObject<T> {
 }
 
 const CreatePolymorphicComponent = forwardRef(
-  // @ts-ignore
+  // Generics on inner fn are not supported in `forwardRef` typings (react 18)
+  // @ts-expect-error -- polymorphic ref + As generic
   function CreatePolymorphicComponentRender<As extends ElementType = 'div'>(
     { as, children, renderId, onError, ...rest }: PolymorphicProps<As>,
     forwardedRef?: Ref<Element>
@@ -91,7 +92,8 @@ const CreatePolymorphicComponent = forwardRef(
     // bg-clip-text) with the grid placeholder and make the page look "corrupt".
     useEffect(() => {
       if (as !== 'img') return;
-      const el = ref && 'current' in (ref as any) ? (ref as any).current : null;
+      const imgRef = ref as RefObject<HTMLImageElement | null>;
+      const el = imgRef.current;
       if (!el || !el.dataset.hasFallback) return;
 
       const ro = new ResizeObserver(([entry]) => {

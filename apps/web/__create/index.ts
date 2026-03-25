@@ -6,7 +6,7 @@ import { authHandler, initAuthConfig } from '@hono/auth-js';
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { hash, verify } from 'argon2';
 import { Hono } from 'hono';
-import { contextStorage, getContext } from 'hono/context-storage';
+import { contextStorage } from 'hono/context-storage';
 import { cors } from 'hono/cors';
 import { proxy } from 'hono/proxy';
 import { bodyLimit } from 'hono/body-limit';
@@ -260,8 +260,8 @@ app.all('/integrations/:path{.+}', async (c, next) => {
   return proxy(url, {
     method: c.req.method,
     body: c.req.raw.body ?? null,
-    // @ts-ignore - this key is accepted even if types not aware and is
-    // required for streaming integrations
+    // Accepted by `fetch` for streaming bodies; typings omit `duplex`
+    // @ts-expect-error -- RequestInit duplex for undici/node fetch proxy
     duplex: 'half',
     redirect: 'manual',
     headers: {

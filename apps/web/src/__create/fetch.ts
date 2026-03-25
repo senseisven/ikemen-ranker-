@@ -12,7 +12,7 @@ const safeStringify = (value: unknown) =>
 const postToParent = (level: string, text: string, extra: unknown) => {
   try {
     if (isBackend() || !window.parent || window.parent === window) {
-      const fn = (console as any)[level] ?? console.log;
+      const fn = (console as Console & Record<string, (...args: unknown[]) => void>)[level] ?? console.log;
       fn(text, extra);
       return;
     }

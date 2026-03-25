@@ -6,7 +6,8 @@
 		"dev": "node --env-file=.env ./node_modules/.bin/react-router dev",
 		"build": "react-router build",
 		"start": "react-router serve ./build/server/index.js",
-		"typecheck": "react-router typegen && tsc --noEmit"
+		"typecheck": "react-router typegen && tsc --noEmit",
+		"test": "vitest run"
 	},
 	"dependencies": {
 		"@auth/core": "^0.37.2",

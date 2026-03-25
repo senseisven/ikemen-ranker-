@@ -24,7 +24,8 @@
 		"skipLibCheck": true,
 		"strict": true,
 		"paths": {
-			"@/*": ["./src/*"]
+			"@/*": ["./src/*"],
+			"@auth/create/react": ["./node_modules/@hono/auth-js/dist/react.d.ts"]
 		}
 	}
 }

@@ -1612,7 +1612,7 @@ const fontBlacklist = new Set([
 const extractFonts = (code: string) => {
   // Regular expression to match class names starting with "font-" that appear
   // inside class attributes
-  const [fontRegex1, fontRegex2] = [/\bfont-(?:\w*)(?:-\w*)*\b/g, /\bfont\-\[(?:[^\]]+)\]/g];
+  const [fontRegex1, fontRegex2] = [/\bfont-(?:\w*)(?:-\w*)*\b/g, /\bfont-\[(?:[^\]]+)\]/g];
 
   // Find all class attributes
   const fontsUsed = new Set<string>();

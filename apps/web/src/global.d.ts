@@ -1,17 +1,13 @@
 import 'react-router';
-module 'virtual:load-fonts.jsx' {
+declare module 'virtual:load-fonts.jsx' {
 	export function LoadFonts(): null;
 }
 declare module 'react-router' {
-	interface AppLoadContext {
-		// add context properties here
-	}
+	// Extend when passing custom load context from the server
+	// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+	interface AppLoadContext {}
 }
 declare module 'npm:stripe' {
 	import Stripe from 'stripe';
 	export default Stripe;
-}
-declare module '@auth/create/react' {
-	import { SessionProvider } from '@auth/react';
-	export { SessionProvider };
 }
