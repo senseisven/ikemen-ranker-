@@ -33,6 +33,8 @@ import { useSandboxStore } from '../__create/hmr-sandbox-store';
 import type { Route } from './+types/root';
 import { useDevServerHeartbeat } from '../__create/useDevServerHeartbeat';
 import { getCategories } from '@/lib/supabase';
+import { LanguageProvider, useTranslation, localizeCategory } from '@/lib/i18n';
+import LanguageToggle from '@/components/LanguageToggle';
 
 type CategoryNav = {
   id: string;
@@ -483,34 +485,37 @@ export function Layout({ children }: { children: ReactNode }) {
   );
 }
 
-export default function App() {
-  const data = useLoaderData() as Awaited<ReturnType<typeof loader>>;
-  const categories: CategoryNav[] = (data?.categories ?? []) as CategoryNav[];
+function AppInner({ categories }: { categories: CategoryNav[] }) {
+  const { t, lang } = useTranslation();
 
   return (
-    <SessionProvider>
+    <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
         <div className="max-w-[1200px] mx-auto px-6 py-4">
-          <nav className="flex items-center justify-between" aria-label="メインナビゲーション">
+          <nav className="flex items-center justify-between" aria-label={t("nav.ariaLabel")}>
             <a href="/" className="font-display text-xl font-bold tracking-widest text-gradient-neon hover:opacity-90 transition-opacity">
-              イケメン名鑑
+              {t("nav.brand")}
             </a>
-            <div className="flex gap-6 md:gap-8 text-sm">
-              {categories.slice(0, 6).map((cat) => (
+            <div className="flex items-center gap-6 md:gap-8 text-sm">
+              {categories.slice(0, 6).map((cat) => {
+                const lc = localizeCategory(cat, lang);
+                return (
                 <a
                   key={cat.id}
                   href={`/${cat.slug}`}
                   className="text-slate-600 hover:text-indigo-600 transition-colors duration-200"
                 >
-                  {cat.name_ja}
+                  {lc.name_ja}
                 </a>
-              ))}
+                );
+              })}
               <a href="/about" className="text-slate-600 hover:text-indigo-600 transition-colors duration-200">
-                編集方針
+                {t("nav.editorial")}
               </a>
               <a href="/admin" className="text-slate-600 hover:text-indigo-600 transition-colors duration-200">
-                管理
+                {t("nav.admin")}
               </a>
+              <LanguageToggle />
             </div>
           </nav>
         </div>
@@ -524,42 +529,58 @@ export default function App() {
         <div className="max-w-[1200px] mx-auto px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-8">
             <div>
-              <h3 className="font-display font-bold mb-4 text-indigo-600">イケメン名鑑について</h3>
+              <h3 className="font-display font-bold mb-4 text-indigo-600">{t("footer.about.title")}</h3>
               <p className="text-sm text-slate-400 leading-relaxed">
-                各界で活躍するイケメンを編集部が厳選して掲載。主観的な評価に基づくランキングです。
+                {t("footer.about.description")}
               </p>
             </div>
             <div>
-              <h3 className="font-display font-bold mb-4 text-indigo-600">カテゴリ</h3>
-              <nav className="flex flex-col gap-2 text-sm" aria-label="カテゴリナビゲーション">
-                {categories.map((cat) => (
+              <h3 className="font-display font-bold mb-4 text-indigo-600">{t("footer.categories.title")}</h3>
+              <nav className="flex flex-col gap-2 text-sm" aria-label={t("footer.categories.ariaLabel")}>
+                {categories.map((cat) => {
+                  const lc = localizeCategory(cat, lang);
+                  return (
                   <a
                     key={cat.id}
                     href={`/${cat.slug}`}
                     className="text-slate-400 hover:text-indigo-600 transition-colors"
                   >
-                    {cat.name_ja}
+                    {lc.name_ja}
                   </a>
-                ))}
+                  );
+                })}
               </nav>
             </div>
             <div>
-              <h3 className="font-display font-bold mb-4 text-indigo-600">サイト情報</h3>
-              <nav className="flex flex-col gap-2 text-sm" aria-label="サイト情報">
+              <h3 className="font-display font-bold mb-4 text-indigo-600">{t("footer.siteInfo.title")}</h3>
+              <nav className="flex flex-col gap-2 text-sm" aria-label={t("footer.siteInfo.ariaLabel")}>
                 <a href="/about" className="text-slate-400 hover:text-indigo-600 transition-colors">
-                  編集方針
+                  {t("footer.siteInfo.editorial")}
                 </a>
                 <a href="/submit" className="text-slate-400 hover:text-indigo-600 transition-colors">
-                  掲載リクエスト
+                  {t("footer.siteInfo.request")}
                 </a>
               </nav>
             </div>
           </div>
           <div className="text-xs text-slate-600 pt-8 border-t border-slate-200">
-            © 2026 イケメン名鑑. All rights reserved.
+            {t("footer.copyright")}
           </div>
         </div>
       </footer>
+    </>
+  );
+}
+
+export default function App() {
+  const data = useLoaderData() as Awaited<ReturnType<typeof loader>>;
+  const categories: CategoryNav[] = (data?.categories ?? []) as CategoryNav[];
+
+  return (
+    <SessionProvider>
+      <LanguageProvider>
+        <AppInner categories={categories} />
+      </LanguageProvider>
     </SessionProvider>
   );
 }

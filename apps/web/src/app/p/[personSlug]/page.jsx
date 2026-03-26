@@ -5,6 +5,7 @@ import {
   getTopInCategory,
   getArticles,
 } from "@/lib/supabase";
+import { useTranslation, localizeCategory, localizePerson } from "@/lib/i18n";
 
 export async function loader({ params }) {
   const personSlug = params?.personSlug;
@@ -44,23 +45,24 @@ export function meta({ data }) {
 
 export default function PersonPage() {
   const loaderData = useLoaderData();
-  const person = loaderData?.person;
+  const { t, lang } = useTranslation();
+  const rawPerson = loaderData?.person;
 
-  if (!person) {
+  if (!rawPerson) {
     return (
       <div className="max-w-[1200px] mx-auto px-6 py-16">
-        <h1 className="text-2xl font-bold mb-4">ページが見つかりません</h1>
-        <p className="text-[#666]">お探しの人物は存在しないか、削除された可能性があります。</p>
-        <a href="/" className="text-[#1e3a8a] hover:underline mt-4 inline-block">ホームに戻る</a>
+        <h1 className="text-2xl font-bold mb-4">{t("person.notFound.title")}</h1>
+        <p className="text-[#666]">{t("person.notFound.description")}</p>
+        <a href="/" className="text-[#1e3a8a] hover:underline mt-4 inline-block">{t("person.goHome")}</a>
       </div>
     );
   }
 
-  const related = loaderData?.related ?? [];
-  const topInCategory = loaderData?.topInCategory ?? [];
+  const person = localizePerson(rawPerson, lang);
+  const related = (loaderData?.related ?? []).map((p) => localizePerson(p, lang));
+  const topInCategory = (loaderData?.topInCategory ?? []).map((p) => localizePerson(p, lang));
   const articles = loaderData?.articles ?? [];
 
-  // JSON-LD structured data
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Person",
@@ -78,28 +80,27 @@ export default function PersonPage() {
   };
 
   const scores = [
-    { name: "清潔感", value: person.score_cleanliness, max: 20 },
-    { name: "顔立ち", value: person.score_facial, max: 20 },
-    { name: "雰囲気", value: person.score_vibe, max: 20 },
-    { name: "ファッション", value: person.score_fashion, max: 20 },
-    { name: "カリスマ性", value: person.score_charisma, max: 20 },
+    { name: t("score.cleanliness"), value: person.score_cleanliness, max: 20 },
+    { name: t("score.facial"), value: person.score_facial, max: 20 },
+    { name: t("score.vibe"), value: person.score_vibe, max: 20 },
+    { name: t("score.fashion"), value: person.score_fashion, max: 20 },
+    { name: t("score.charisma"), value: person.score_charisma, max: 20 },
   ];
 
   return (
     <div>
-      {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
       <div className="max-w-[1000px] mx-auto px-6 py-12">
-        {/* Breadcrumb - SEO friendly */}
-        <nav className="mb-4 text-sm" aria-label="パンくずリスト">
+        {/* Breadcrumb */}
+        <nav className="mb-4 text-sm" aria-label={t("person.breadcrumb.ariaLabel")}>
           <ol className="flex items-center">
             <li>
               <a href="/" className="text-[#999] hover:text-[#1e3a8a]">
-                ホーム
+                {t("person.breadcrumb.home")}
               </a>
             </li>
             <li className="mx-2 text-[#999]">/</li>
@@ -108,7 +109,7 @@ export default function PersonPage() {
                 href={`/${person.category?.slug}`}
                 className="text-[#999] hover:text-[#1e3a8a]"
               >
-                {person.category?.name_ja}
+                {localizeCategory(person.category, lang)?.name_ja}
               </a>
             </li>
             <li className="mx-2 text-[#999]">/</li>
@@ -147,10 +148,10 @@ export default function PersonPage() {
               <p className="text-lg text-[#666]">{person.title}</p>
             </header>
 
-            {/* Tags - All visible */}
+            {/* Tags */}
             {person.tags.length > 0 && (
               <div className="mb-8">
-                <h2 className="sr-only">タグ</h2>
+                <h2 className="sr-only">{t("person.tags.srOnly")}</h2>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {person.tags.map((tag) => (
                     <span
@@ -164,16 +165,16 @@ export default function PersonPage() {
               </div>
             )}
 
-            {/* Profile - Full content for SEO/LLM */}
+            {/* Profile */}
             <section className="mb-8 pb-8 border-b border-[#e5e5e5]">
-              <h2 className="font-bold mb-3">プロフィール</h2>
+              <h2 className="font-bold mb-3">{t("person.profile")}</h2>
               <p className="text-[#666] leading-relaxed">{person.bio_short}</p>
             </section>
 
-            {/* Editorial - Full content for SEO/LLM */}
+            {/* Editorial */}
             {person.editorial && (
               <section className="mb-8 pb-8 border-b border-[#e5e5e5]">
-                <h2 className="font-bold mb-3">編集部コメント</h2>
+                <h2 className="font-bold mb-3">{t("person.editorialComment")}</h2>
                 <p className="text-[#666] leading-relaxed">{person.editorial}</p>
               </section>
             )}
@@ -181,7 +182,7 @@ export default function PersonPage() {
             {/* Links */}
             {(person.link_x || person.link_instagram || person.link_official) && (
               <section className="mb-8">
-                <h2 className="font-bold mb-3">リンク</h2>
+                <h2 className="font-bold mb-3">{t("person.links")}</h2>
                 <div className="flex flex-col gap-2">
                   {person.link_x && (
                     <a
@@ -210,7 +211,7 @@ export default function PersonPage() {
                       rel="noopener noreferrer"
                       className="text-sm text-[#1e3a8a] hover:underline"
                     >
-                      公式サイト
+                      {t("person.officialSite")}
                     </a>
                   )}
                 </div>
@@ -219,12 +220,12 @@ export default function PersonPage() {
           </div>
         </article>
 
-        {/* Score Breakdown - All visible */}
+        {/* Score Breakdown */}
         <section className="mb-16">
-          <h2 className="text-2xl font-bold mb-6">スコア内訳</h2>
+          <h2 className="text-2xl font-bold mb-6">{t("person.scoreBreakdown")}</h2>
           <div className="bg-[#fafafa] p-6">
             <div className="flex items-center justify-between mb-6">
-              <span className="text-sm text-[#666]">総合スコア</span>
+              <span className="text-sm text-[#666]">{t("person.overallScore")}</span>
               <span className="text-4xl font-bold">{person.score_total}</span>
             </div>
             <div className="space-y-4">
@@ -249,7 +250,7 @@ export default function PersonPage() {
         {/* Related People */}
         {related.length > 0 && (
           <section className="mb-16 pb-16 border-b border-[#e5e5e5]">
-            <h2 className="text-2xl font-bold mb-6">似ているタイプ</h2>
+            <h2 className="text-2xl font-bold mb-6">{t("person.relatedType")}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {related.map((p) => (
                 <article key={p.id}>
@@ -278,7 +279,7 @@ export default function PersonPage() {
         {/* Top in Category */}
         {topInCategory.length > 0 && (
           <section className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">{person.category?.name_ja}の上位ランキング</h2>
+            <h2 className="text-2xl font-bold mb-6">{t("person.topRanking", { name: localizeCategory(person.category, lang)?.name_ja })}</h2>
             <div className="space-y-4">
               {topInCategory.map((p, index) => (
                 <article key={p.id}>
@@ -320,7 +321,7 @@ export default function PersonPage() {
         {/* Related Articles */}
         {articles.length > 0 && (
           <section>
-            <h2 className="text-2xl font-bold mb-6">関連記事</h2>
+            <h2 className="text-2xl font-bold mb-6">{t("person.relatedArticles")}</h2>
             <div className="space-y-4">
               {articles.map((article) => (
                 <article key={article.id} className="border-b border-[#e5e5e5] pb-4">

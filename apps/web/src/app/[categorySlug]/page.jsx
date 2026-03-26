@@ -4,15 +4,19 @@ import {
   getTagsByCategory,
   getArticles,
 } from "@/lib/supabase";
-import { useLoaderData } from "react-router";
+import { Link, useLoaderData } from "react-router";
+import { useTranslation, localizeCategory, localizePerson } from "@/lib/i18n";
 
-export async function loader({ params }) {
+export async function loader({ params, request }) {
   const categorySlug = params?.categorySlug;
   const category = categorySlug ? await getCategoryBySlug(categorySlug) : null;
 
   if (!category) {
-    return { category: null, people: [], tags: [], articles: [] };
+    return { category: null, people: [], tags: [], articles: [], activeTag: null };
   }
+
+  const url = new URL(request.url);
+  const tagParam = url.searchParams.get("tag");
 
   const [people, tags, articles] = await Promise.all([
     getPeopleByCategorySlug(category.slug),
@@ -20,11 +24,16 @@ export async function loader({ params }) {
     getArticles(category.id, 5),
   ]);
 
+  const tagList = tags ?? [];
+  const activeTag =
+    tagParam && tagList.includes(tagParam) ? tagParam : null;
+
   return {
     category,
     people: people ?? [],
-    tags: tags ?? [],
+    tags: tagList,
     articles: articles ?? [],
+    activeTag,
   };
 }
 
@@ -42,14 +51,16 @@ export function meta({ data }) {
 
 export default function CategoryPage() {
   const loaderData = useLoaderData();
-  const category = loaderData?.category;
+  const { t, lang } = useTranslation();
+  const rawCategory = loaderData?.category;
+  const category = localizeCategory(rawCategory, lang);
 
   if (!category) {
     return (
       <div className="max-w-[1200px] mx-auto px-6 py-24">
-        <h1 className="font-display text-2xl font-bold mb-4 text-slate-800">カテゴリが見つかりません</h1>
-        <p className="text-slate-600 mb-4">お探しのカテゴリは存在しないか、削除された可能性があります。</p>
-        <a href="/" className="text-indigo-600 hover:underline mt-4 inline-block">ホームに戻る</a>
+        <h1 className="font-display text-2xl font-bold mb-4 text-slate-800">{t("category.notFound.title")}</h1>
+        <p className="text-slate-600 mb-4">{t("category.notFound.description")}</p>
+        <a href="/" className="text-indigo-600 hover:underline mt-4 inline-block">{t("category.goHome")}</a>
       </div>
     );
   }
@@ -57,11 +68,15 @@ export default function CategoryPage() {
   const allPeople = loaderData?.people ?? [];
   const tags = loaderData?.tags ?? [];
   const articles = loaderData?.articles ?? [];
+  const activeTag = loaderData?.activeTag ?? null;
 
-  // Sort by score for display
   const sortedPeople = [...allPeople].sort((a, b) => b.score_total - a.score_total);
+  const filteredPeople = activeTag
+    ? sortedPeople.filter((p) => (p.tags || []).includes(activeTag))
+    : sortedPeople;
 
-  // Generate JSON-LD structured data for SEO/LLM
+  const categoryPath = `/${category.slug}`;
+
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -69,7 +84,7 @@ export default function CategoryPage() {
     "description": category.description,
     "mainEntity": {
       "@type": "ItemList",
-      "itemListElement": sortedPeople.map((person, index) => ({
+      "itemListElement": filteredPeople.map((person, index) => ({
         "@type": "ListItem",
         "position": index + 1,
         "item": {
@@ -83,15 +98,17 @@ export default function CategoryPage() {
     }
   };
 
+  const rankingSuffix = activeTag
+    ? t("category.rankingSuffix.filtered", { total: sortedPeople.length })
+    : t("category.rankingSuffix.all");
+
   return (
     <div className="relative">
-      {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
-      {/* Background */}
       <div className="fixed inset-0 -z-10 bg-slate-50" aria-hidden="true" />
 
       <div className="max-w-[1200px] mx-auto px-6 py-16">
@@ -108,74 +125,122 @@ export default function CategoryPage() {
 
         {/* Tags Section */}
         {tags.length > 0 && (
-          <section className="mb-12 pb-8 border-b border-slate-200">
-            <h2 className="font-display font-bold text-lg mb-4 text-indigo-600">タグ一覧</h2>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-3 py-1.5 text-sm border border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors rounded"
-                >
-                  {tag}
-                </span>
-              ))}
+          <section className="mb-12 pb-8 border-b border-slate-200" aria-label={t("category.filterByTag")}>
+            <h2 className="font-display font-bold text-lg mb-4 text-indigo-600">{t("category.filterByTag")}</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to={categoryPath}
+                reloadDocument={false}
+                className={`px-3 py-1.5 text-sm border rounded transition-colors ${
+                  !activeTag
+                    ? "border-indigo-500 bg-indigo-50 text-indigo-800 font-medium"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-600"
+                }`}
+                aria-current={!activeTag ? "true" : undefined}
+              >
+                {t("category.all")}
+              </Link>
+              {tags.map((tag) => {
+                const isActive = activeTag === tag;
+                return (
+                  <Link
+                    key={tag}
+                    to={{ pathname: categoryPath, search: `?tag=${encodeURIComponent(tag)}` }}
+                    reloadDocument={false}
+                    className={`px-3 py-1.5 text-sm border rounded transition-colors ${
+                      isActive
+                        ? "border-indigo-500 bg-indigo-50 text-indigo-800 font-medium"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-600"
+                    }`}
+                    aria-current={isActive ? "true" : undefined}
+                  >
+                    {tag}
+                  </Link>
+                );
+              })}
             </div>
+            {activeTag && (
+              <p className="mt-3 text-sm text-slate-500">
+                {t("category.filterActive", { tag: activeTag })}
+                {" · "}
+                <Link to={categoryPath} className="text-indigo-600 hover:underline font-medium">
+                  {t("category.clearFilter")}
+                </Link>
+              </p>
+            )}
           </section>
         )}
 
         {/* People List */}
         <section className="mb-20">
           <h2 className="font-display text-2xl font-bold mb-8 text-cyber-cyan">
-            — {category.name_ja}ランキング（{sortedPeople.length}名） —
+            {t("category.ranking", { name: category.name_ja, count: filteredPeople.length, suffix: rankingSuffix })}
           </h2>
           <div className="space-y-0">
-            {sortedPeople.map((person, index) => (
-              <article
-                key={person.id}
-                className="flex items-center gap-6 py-6 border-b border-slate-200 hover:bg-slate-50 px-6 -mx-6 transition-all duration-200 rounded-sm"
-              >
-                <div className="w-12 text-center flex-shrink-0">
-                  <span className="font-display text-2xl font-bold text-cyber-cyan/80" aria-label={`ランキング${index + 1}位`}>
-                    {index + 1}
-                  </span>
-                </div>
-                <a href={`/p/${person.slug}`} className="w-20 h-20 flex-shrink-0 relative overflow-hidden block rounded-sm border border-slate-200">
-                  {person.image_url ? (
-                    <img
-                      src={person.image_url}
-                      alt={person.image_alt || person.name_ja}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-cyber-dark to-cyber-darker" />
-                  )}
-                </a>
-                <div className="flex-1">
-                  <a href={`/p/${person.slug}`} className="hover:text-cyber-cyan transition-colors">
-                    <h3 className="font-bold mb-1 text-slate-800">{person.name_ja}</h3>
-                  </a>
-                  <p className="text-sm text-slate-500 mb-2">{person.title}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(person.tags || []).map((tag) => (
-                      <span
-                        key={tag}
-                        className="text-xs text-slate-600 border border-slate-200 px-2 py-0.5 rounded"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+            {filteredPeople.length === 0 ? (
+              <p className="text-slate-500 text-sm py-8">
+                {t("category.noMatch")}
+                <Link to={categoryPath} className="text-indigo-600 hover:underline ml-1">
+                  {t("category.showAll")}
+                </Link>
+              </p>
+            ) : (
+              filteredPeople.map((person, index) => {
+                const lp = localizePerson(person, lang);
+                return (
+                <article
+                  key={person.id}
+                  className="flex items-center gap-6 py-6 border-b border-slate-200 hover:bg-slate-50 px-6 -mx-6 transition-all duration-200 rounded-sm"
+                >
+                  <div className="w-12 text-center flex-shrink-0">
+                    <span className="font-display text-2xl font-bold text-cyber-cyan/80" aria-label={t("category.rankLabel", { n: index + 1 })}>
+                      {index + 1}
+                    </span>
                   </div>
-                  {person.bio_short && (
-                    <p className="text-sm text-slate-500 mt-2 line-clamp-2">{person.bio_short}</p>
-                  )}
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="text-sm text-slate-500 mb-1">Total Score</div>
-                  <div className="font-display text-3xl font-bold text-cyber-cyan">{person.score_total}</div>
-                </div>
-              </article>
-            ))}
+                  <a href={`/p/${person.slug}`} className="w-20 h-20 flex-shrink-0 relative overflow-hidden block rounded-sm border border-slate-200">
+                    {person.image_url ? (
+                      <img
+                        src={person.image_url}
+                        alt={person.image_alt || lp.name_ja}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-cyber-dark to-cyber-darker" />
+                    )}
+                  </a>
+                  <div className="flex-1">
+                    <a href={`/p/${person.slug}`} className="hover:text-cyber-cyan transition-colors">
+                      <h3 className="font-bold mb-1 text-slate-800">{lp.name_ja}</h3>
+                    </a>
+                    <p className="text-sm text-slate-500 mb-2">{lp.title}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(person.tags || []).map((tag) => (
+                        <Link
+                          key={tag}
+                          to={{ pathname: categoryPath, search: `?tag=${encodeURIComponent(tag)}` }}
+                          className={`text-xs border px-2 py-0.5 rounded transition-colors ${
+                            activeTag === tag
+                              ? "border-indigo-500 bg-indigo-50 text-indigo-800"
+                              : "text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+                          }`}
+                        >
+                          {tag}
+                        </Link>
+                      ))}
+                    </div>
+                    {person.bio_short && (
+                      <p className="text-sm text-slate-500 mt-2 line-clamp-2">{person.bio_short}</p>
+                    )}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-sm text-slate-500 mb-1">{t("category.totalScore")}</div>
+                    <div className="font-display text-3xl font-bold text-cyber-cyan">{person.score_total}</div>
+                  </div>
+                </article>
+                );
+              })
+            )}
           </div>
         </section>
 
@@ -183,7 +248,7 @@ export default function CategoryPage() {
         {articles.length > 0 && (
           <section className="mb-20">
             <h2 className="font-display text-2xl font-bold mb-8 text-cyber-cyan">
-              — {category.name_ja}関連記事 —
+              {t("category.relatedArticles", { name: category.name_ja })}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {articles.map((article) => (
@@ -196,7 +261,7 @@ export default function CategoryPage() {
                   )}
                   {article.published_at && (
                     <time className="text-xs text-slate-500 mt-2 block">
-                      {new Date(article.published_at).toLocaleDateString('ja-JP')}
+                      {new Date(article.published_at).toLocaleDateString(t("common.dateLocale"))}
                     </time>
                   )}
                 </article>
@@ -208,36 +273,39 @@ export default function CategoryPage() {
         {/* Detailed Person Info Section */}
         <section>
           <h2 className="font-display text-2xl font-bold mb-8 text-cyber-cyan">
-            — {category.name_ja}詳細情報 —
+            {t("category.detailedInfo", { name: category.name_ja })}
           </h2>
           <div className="space-y-8">
-            {sortedPeople.slice(0, 10).map((person) => (
+            {filteredPeople.slice(0, 10).map((person) => {
+              const lp = localizePerson(person, lang);
+              return (
               <article key={person.id} className="pb-8 border-b border-slate-200 last:border-0">
                 <h3 className="text-xl font-bold mb-2">
                   <a href={`/p/${person.slug}`} className="text-slate-800 hover:text-indigo-600 transition-colors">
-                    {person.name_ja}
+                    {lp.name_ja}
                   </a>
                 </h3>
-                <p className="text-slate-500 mb-2">{person.title}</p>
+                <p className="text-slate-500 mb-2">{lp.title}</p>
                 {person.bio_short && (
                   <p className="text-slate-500 leading-relaxed mb-3">{person.bio_short}</p>
                 )}
                 {person.editorial && (
                   <div className="glass p-4 text-sm text-slate-600 leading-relaxed rounded-sm">
-                    <strong className="block mb-2 text-cyber-cyan">編集部コメント:</strong>
+                    <strong className="block mb-2 text-cyber-cyan">{t("category.editorialComment")}</strong>
                     {person.editorial}
                   </div>
                 )}
                 <div className="mt-3 text-sm text-slate-500">
-                  <strong>スコア:</strong> <span className="text-cyber-cyan font-mono">{person.score_total}</span>点
+                  <strong>{t("category.score")}</strong> <span className="text-cyber-cyan font-mono">{person.score_total}</span>{t("category.points")}
                   {(person.tags || []).length > 0 && (
                     <span className="ml-4">
-                      <strong>タグ:</strong> {(person.tags || []).join('、')}
+                      <strong>{t("category.tags")}</strong> {(person.tags || []).join(t("common.tagSeparator"))}
                     </span>
                   )}
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         </section>
       </div>

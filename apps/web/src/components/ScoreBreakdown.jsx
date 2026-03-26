@@ -1,17 +1,21 @@
+import { useTranslation } from "@/lib/i18n";
+
 export default function ScoreBreakdown({ scores, total }) {
+  const { t } = useTranslation();
+
   const scoreLabels = {
-    cleanliness: "清潔感",
-    facial: "顔立ち",
-    vibe: "雰囲気",
-    fashion: "ファッション",
-    charisma: "カリスマ",
+    cleanliness: t("score.cleanliness"),
+    facial: t("score.facial"),
+    vibe: t("score.vibe"),
+    fashion: t("score.fashion"),
+    charisma: t("score.charisma"),
   };
 
   return (
     <div>
       <div className="mb-8 pb-6 border-b border-[#e5e5e5]">
         <div className="text-center">
-          <div className="text-sm text-[#999] mb-2">総合スコア</div>
+          <div className="text-sm text-[#999] mb-2">{t("score.overall")}</div>
           <div className="text-5xl font-bold">{total}</div>
           <div className="text-sm text-[#999]">/ 100</div>
         </div>

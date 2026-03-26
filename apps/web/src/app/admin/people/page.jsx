@@ -10,8 +10,10 @@ import {
   adminDeletePerson,
   uploadPersonImage,
 } from "@/lib/supabase";
+import { useTranslation } from "@/lib/i18n";
 
 export default function AdminPeople() {
+  const { t } = useTranslation();
   const [people, setPeople] = useState([]);
   const [categories, setCategories] = useState([]);
   const [tags, setTags] = useState([]);
@@ -111,7 +113,7 @@ export default function AdminPeople() {
       resetForm();
     } catch (error) {
       console.error("Failed to save person:", error);
-      alert("保存に失敗しました: " + error.message);
+      alert(t("common.saveFailed") + error.message);
     } finally {
       setUploading(false);
     }
@@ -144,11 +146,10 @@ export default function AdminPeople() {
       meta_description: person.meta_description || "",
     });
     
-    // Get tag IDs for the person
     const personTagNames = person.tags || [];
     const tagIds = tags
-      .filter((t) => personTagNames.includes(t.name))
-      .map((t) => t.id);
+      .filter((tg) => personTagNames.includes(tg.name))
+      .map((tg) => tg.id);
     setSelectedTags(tagIds);
     
     setImageFile(null);
@@ -158,13 +159,13 @@ export default function AdminPeople() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("本当に削除しますか？")) return;
+    if (!confirm(t("common.confirmDelete"))) return;
     try {
       await adminDeletePerson(id);
       await loadData();
     } catch (error) {
       console.error("Failed to delete person:", error);
-      alert("削除に失敗しました: " + error.message);
+      alert(t("common.deleteFailed") + error.message);
     }
   };
 
@@ -212,7 +213,7 @@ export default function AdminPeople() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>読み込み中...</p>
+        <p>{t("common.loading")}</p>
       </div>
     );
   }
@@ -222,210 +223,114 @@ export default function AdminPeople() {
       <header className="bg-white border-b border-[#e5e5e5]">
         <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <a href="/admin" className="text-[#666] hover:text-[#1e3a8a]">← 戻る</a>
-            <h1 className="text-xl font-bold">人物管理</h1>
+            <a href="/admin" className="text-[#666] hover:text-[#1e3a8a]">{t("common.back")}</a>
+            <h1 className="text-xl font-bold">{t("admin.people.title")}</h1>
           </div>
           <button
             onClick={() => setShowForm(true)}
             className="bg-[#1e3a8a] text-white px-4 py-2 text-sm hover:bg-[#15296b]"
           >
-            新規作成
+            {t("common.create")}
           </button>
         </div>
       </header>
 
       <div className="max-w-[1400px] mx-auto px-6 py-8">
-        {/* Form Modal */}
         {showForm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <h2 className="text-xl font-bold mb-6">
-                {editingId ? "人物編集" : "新規人物"}
+                {editingId ? t("admin.ppl.editTitle") : t("admin.ppl.newTitle")}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Basic Info */}
                 <div className="space-y-4">
-                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">基本情報</h3>
+                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">{t("admin.ppl.basicInfo")}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1">スラッグ (URL用)*</label>
-                      <input
-                        type="text"
-                        value={formData.slug}
-                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                        placeholder="takeshi-yamamoto"
-                        required
-                      />
+                      <label className="block text-sm font-medium mb-1">{t("common.slug")}*</label>
+                      <input type="text" value={formData.slug} onChange={(e) => setFormData({ ...formData, slug: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="takeshi-yamamoto" required />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">カテゴリ*</label>
-                      <select
-                        value={formData.category_id}
-                        onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                        required
-                      >
-                        <option value="">選択してください</option>
+                      <label className="block text-sm font-medium mb-1">{t("admin.ppl.category")}*</label>
+                      <select value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" required>
+                        <option value="">{t("common.select")}</option>
                         {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.name_ja}
-                          </option>
+                          <option key={cat.id} value={cat.id}>{cat.name_ja}</option>
                         ))}
                       </select>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1">名前（日本語）*</label>
-                      <input
-                        type="text"
-                        value={formData.name_ja}
-                        onChange={(e) => setFormData({ ...formData, name_ja: e.target.value })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                        placeholder="山本剛志"
-                        required
-                      />
+                      <label className="block text-sm font-medium mb-1">{t("admin.ppl.nameJa")}*</label>
+                      <input type="text" value={formData.name_ja} onChange={(e) => setFormData({ ...formData, name_ja: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="山本剛志" required />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">名前（カナ）</label>
-                      <input
-                        type="text"
-                        value={formData.name_kana}
-                        onChange={(e) => setFormData({ ...formData, name_kana: e.target.value })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                        placeholder="ヤマモトタケシ"
-                      />
+                      <label className="block text-sm font-medium mb-1">{t("admin.ppl.nameKana")}</label>
+                      <input type="text" value={formData.name_kana} onChange={(e) => setFormData({ ...formData, name_kana: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="ヤマモトタケシ" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">肩書き*</label>
-                    <input
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      className="w-full border border-[#e5e5e5] px-3 py-2"
-                      placeholder="AI×医療スタートアップCEO"
-                      required
-                    />
+                    <label className="block text-sm font-medium mb-1">{t("admin.ppl.jobTitle")}*</label>
+                    <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="AI×医療スタートアップCEO" required />
                   </div>
                 </div>
 
-                {/* Tags */}
                 <div className="space-y-4">
-                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">タグ</h3>
+                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">{t("admin.ppl.tags")}</h3>
                   <div className="flex flex-wrap gap-2">
                     {tags.map((tag) => (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onClick={() => toggleTag(tag.id)}
-                        className={`px-3 py-1 text-sm border transition-colors ${
-                          selectedTags.includes(tag.id)
-                            ? "bg-[#1e3a8a] text-white border-[#1e3a8a]"
-                            : "border-[#e5e5e5] hover:border-[#1e3a8a]"
-                        }`}
-                      >
+                      <button key={tag.id} type="button" onClick={() => toggleTag(tag.id)} className={`px-3 py-1 text-sm border transition-colors ${selectedTags.includes(tag.id) ? "bg-[#1e3a8a] text-white border-[#1e3a8a]" : "border-[#e5e5e5] hover:border-[#1e3a8a]"}`}>
                         {tag.name}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Scores */}
                 <div className="space-y-4">
                   <h3 className="font-bold text-sm text-[#666] border-b pb-2">
-                    スコア（各0-20点、合計: {calculateTotal()}点）
+                    {t("admin.ppl.scores", { total: calculateTotal() })}
                   </h3>
                   <div className="grid grid-cols-5 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1">清潔感</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        value={formData.score_cleanliness}
-                        onChange={(e) => setFormData({ ...formData, score_cleanliness: parseInt(e.target.value) || 0 })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                      />
+                      <label className="block text-sm font-medium mb-1">{t("score.cleanliness")}</label>
+                      <input type="number" min="0" max="20" value={formData.score_cleanliness} onChange={(e) => setFormData({ ...formData, score_cleanliness: parseInt(e.target.value) || 0 })} className="w-full border border-[#e5e5e5] px-3 py-2" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">顔立ち</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        value={formData.score_facial}
-                        onChange={(e) => setFormData({ ...formData, score_facial: parseInt(e.target.value) || 0 })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                      />
+                      <label className="block text-sm font-medium mb-1">{t("score.facial")}</label>
+                      <input type="number" min="0" max="20" value={formData.score_facial} onChange={(e) => setFormData({ ...formData, score_facial: parseInt(e.target.value) || 0 })} className="w-full border border-[#e5e5e5] px-3 py-2" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">雰囲気</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        value={formData.score_vibe}
-                        onChange={(e) => setFormData({ ...formData, score_vibe: parseInt(e.target.value) || 0 })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                      />
+                      <label className="block text-sm font-medium mb-1">{t("score.vibe")}</label>
+                      <input type="number" min="0" max="20" value={formData.score_vibe} onChange={(e) => setFormData({ ...formData, score_vibe: parseInt(e.target.value) || 0 })} className="w-full border border-[#e5e5e5] px-3 py-2" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">ファッション</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        value={formData.score_fashion}
-                        onChange={(e) => setFormData({ ...formData, score_fashion: parseInt(e.target.value) || 0 })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                      />
+                      <label className="block text-sm font-medium mb-1">{t("score.fashion")}</label>
+                      <input type="number" min="0" max="20" value={formData.score_fashion} onChange={(e) => setFormData({ ...formData, score_fashion: parseInt(e.target.value) || 0 })} className="w-full border border-[#e5e5e5] px-3 py-2" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">カリスマ性</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="20"
-                        value={formData.score_charisma}
-                        onChange={(e) => setFormData({ ...formData, score_charisma: parseInt(e.target.value) || 0 })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                      />
+                      <label className="block text-sm font-medium mb-1">{t("score.charisma")}</label>
+                      <input type="number" min="0" max="20" value={formData.score_charisma} onChange={(e) => setFormData({ ...formData, score_charisma: parseInt(e.target.value) || 0 })} className="w-full border border-[#e5e5e5] px-3 py-2" />
                     </div>
                   </div>
                 </div>
 
-                {/* Content */}
                 <div className="space-y-4">
-                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">コンテンツ</h3>
+                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">{t("admin.ppl.content")}</h3>
                   <div>
-                    <label className="block text-sm font-medium mb-1">プロフィール</label>
-                    <textarea
-                      value={formData.bio_short}
-                      onChange={(e) => setFormData({ ...formData, bio_short: e.target.value })}
-                      className="w-full border border-[#e5e5e5] px-3 py-2 h-24"
-                      placeholder="プロフィール文..."
-                    />
+                    <label className="block text-sm font-medium mb-1">{t("admin.ppl.profile")}</label>
+                    <textarea value={formData.bio_short} onChange={(e) => setFormData({ ...formData, bio_short: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2 h-24" placeholder={t("admin.ppl.profilePlaceholder")} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">編集部コメント</label>
-                    <textarea
-                      value={formData.editorial}
-                      onChange={(e) => setFormData({ ...formData, editorial: e.target.value })}
-                      className="w-full border border-[#e5e5e5] px-3 py-2 h-32"
-                      placeholder="編集部のコメント..."
-                    />
+                    <label className="block text-sm font-medium mb-1">{t("admin.ppl.editorial")}</label>
+                    <textarea value={formData.editorial} onChange={(e) => setFormData({ ...formData, editorial: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2 h-32" placeholder={t("admin.ppl.editorialPlaceholder")} />
                   </div>
                 </div>
 
-                {/* Image */}
                 <div className="space-y-4">
-                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">画像</h3>
-
+                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">{t("admin.ppl.image")}</h3>
                   <div className="grid grid-cols-[1fr_200px] gap-6">
                     <div className="space-y-4">
-                      {/* Drop zone */}
                       <div
                         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                         onDragLeave={() => setDragOver(false)}
@@ -439,95 +344,34 @@ export default function AdminPeople() {
                           }
                         }}
                         onClick={() => document.getElementById('person-image-input')?.click()}
-                        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                          dragOver
-                            ? 'border-[#1e3a8a] bg-blue-50'
-                            : 'border-[#d1d5db] hover:border-[#1e3a8a] hover:bg-[#fafafa]'
-                        }`}
+                        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${dragOver ? 'border-[#1e3a8a] bg-blue-50' : 'border-[#d1d5db] hover:border-[#1e3a8a] hover:bg-[#fafafa]'}`}
                       >
-                        <input
-                          id="person-image-input"
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp,image/gif"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setImageFile(file);
-                              setImagePreview(URL.createObjectURL(file));
-                            }
-                          }}
-                        />
+                        <input id="person-image-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setImageFile(file); setImagePreview(URL.createObjectURL(file)); } }} />
                         <div className="text-[#666] text-sm">
-                          <p className="font-medium mb-1">
-                            画像をドラッグ＆ドロップ、またはクリックして選択
-                          </p>
-                          <p className="text-xs text-[#999]">
-                            JPEG / PNG / WebP / GIF（最大5MB）
-                          </p>
+                          <p className="font-medium mb-1">{t("admin.ppl.imageDrop")}</p>
+                          <p className="text-xs text-[#999]">{t("admin.ppl.imageFormats")}</p>
                         </div>
                         {imageFile && (
                           <p className="mt-2 text-xs text-[#1e3a8a] font-medium">
-                            選択中: {imageFile.name}
+                            {t("admin.ppl.imageSelected", { name: imageFile.name })}
                           </p>
                         )}
                       </div>
-
-                      {/* Manual URL fallback */}
                       <div>
-                        <label className="block text-sm font-medium mb-1">
-                          または画像URLを直接入力
-                        </label>
-                        <input
-                          type="url"
-                          value={formData.image_url}
-                          onChange={(e) => {
-                            setFormData({ ...formData, image_url: e.target.value });
-                            if (e.target.value) {
-                              setImagePreview(e.target.value);
-                              setImageFile(null);
-                            }
-                          }}
-                          className="w-full border border-[#e5e5e5] px-3 py-2"
-                          placeholder="https://..."
-                          disabled={!!imageFile}
-                        />
+                        <label className="block text-sm font-medium mb-1">{t("admin.ppl.imageUrlLabel")}</label>
+                        <input type="url" value={formData.image_url} onChange={(e) => { setFormData({ ...formData, image_url: e.target.value }); if (e.target.value) { setImagePreview(e.target.value); setImageFile(null); } }} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="https://..." disabled={!!imageFile} />
                       </div>
-
                       <div>
-                        <label className="block text-sm font-medium mb-1">画像Alt</label>
-                        <input
-                          type="text"
-                          value={formData.image_alt}
-                          onChange={(e) => setFormData({ ...formData, image_alt: e.target.value })}
-                          className="w-full border border-[#e5e5e5] px-3 py-2"
-                          placeholder="山本剛志"
-                        />
+                        <label className="block text-sm font-medium mb-1">{t("admin.ppl.imageAlt")}</label>
+                        <input type="text" value={formData.image_alt} onChange={(e) => setFormData({ ...formData, image_alt: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="山本剛志" />
                       </div>
                     </div>
-
-                    {/* Preview */}
                     <div className="flex flex-col items-center gap-2">
-                      <span className="text-xs text-[#666] font-medium">プレビュー</span>
+                      <span className="text-xs text-[#666] font-medium">{t("admin.ppl.preview")}</span>
                       {imagePreview ? (
                         <div className="relative">
-                          <img
-                            src={imagePreview}
-                            alt="プレビュー"
-                            className="w-[180px] h-[180px] object-cover rounded-lg border border-[#e5e5e5]"
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setImageFile(null);
-                              setImagePreview(null);
-                              setFormData({ ...formData, image_url: '' });
-                            }}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
-                          >
-                            ×
-                          </button>
+                          <img src={imagePreview} alt={t("admin.ppl.preview")} className="w-[180px] h-[180px] object-cover rounded-lg border border-[#e5e5e5]" onError={(e) => { e.target.style.display = 'none'; }} />
+                          <button type="button" onClick={() => { setImageFile(null); setImagePreview(null); setFormData({ ...formData, image_url: '' }); }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600">×</button>
                         </div>
                       ) : (
                         <div className="w-[180px] h-[180px] bg-[#f5f5f5] border border-[#e5e5e5] rounded-lg flex items-center justify-center">
@@ -538,119 +382,64 @@ export default function AdminPeople() {
                   </div>
                 </div>
 
-                {/* Links */}
                 <div className="space-y-4">
-                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">リンク</h3>
+                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">{t("admin.ppl.links")}</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-1">X (Twitter)</label>
-                      <input
-                        type="url"
-                        value={formData.link_x}
-                        onChange={(e) => setFormData({ ...formData, link_x: e.target.value })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                        placeholder="https://x.com/..."
-                      />
+                      <input type="url" value={formData.link_x} onChange={(e) => setFormData({ ...formData, link_x: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="https://x.com/..." />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1">Instagram</label>
-                      <input
-                        type="url"
-                        value={formData.link_instagram}
-                        onChange={(e) => setFormData({ ...formData, link_instagram: e.target.value })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                        placeholder="https://instagram.com/..."
-                      />
+                      <input type="url" value={formData.link_instagram} onChange={(e) => setFormData({ ...formData, link_instagram: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="https://instagram.com/..." />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">公式サイト</label>
-                      <input
-                        type="url"
-                        value={formData.link_official}
-                        onChange={(e) => setFormData({ ...formData, link_official: e.target.value })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                        placeholder="https://..."
-                      />
+                      <label className="block text-sm font-medium mb-1">{t("admin.ppl.officialSite")}</label>
+                      <input type="url" value={formData.link_official} onChange={(e) => setFormData({ ...formData, link_official: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="https://..." />
                     </div>
                   </div>
                 </div>
 
-                {/* SEO */}
                 <div className="space-y-4">
-                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">SEO</h3>
+                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">{t("common.seo")}</h3>
                   <div>
-                    <label className="block text-sm font-medium mb-1">メタタイトル</label>
-                    <input
-                      type="text"
-                      value={formData.meta_title}
-                      onChange={(e) => setFormData({ ...formData, meta_title: e.target.value })}
-                      className="w-full border border-[#e5e5e5] px-3 py-2"
-                      placeholder="山本剛志 | スタートアップ | イケメン名鑑"
-                    />
+                    <label className="block text-sm font-medium mb-1">{t("common.metaTitle")}</label>
+                    <input type="text" value={formData.meta_title} onChange={(e) => setFormData({ ...formData, meta_title: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="山本剛志 | スタートアップ | イケメン名鑑" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">メタディスクリプション</label>
-                    <textarea
-                      value={formData.meta_description}
-                      onChange={(e) => setFormData({ ...formData, meta_description: e.target.value })}
-                      className="w-full border border-[#e5e5e5] px-3 py-2 h-20"
-                      placeholder="検索エンジン向けの説明文..."
-                    />
+                    <label className="block text-sm font-medium mb-1">{t("common.metaDescription")}</label>
+                    <textarea value={formData.meta_description} onChange={(e) => setFormData({ ...formData, meta_description: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2 h-20" placeholder={t("admin.cat.metaDescPlaceholder")} />
                   </div>
                 </div>
 
-                {/* Settings */}
                 <div className="space-y-4">
-                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">設定</h3>
+                  <h3 className="font-bold text-sm text-[#666] border-b pb-2">{t("admin.ppl.settings")}</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1">表示順</label>
-                      <input
-                        type="number"
-                        value={formData.display_order}
-                        onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
-                        className="w-full border border-[#e5e5e5] px-3 py-2"
-                      />
+                      <label className="block text-sm font-medium mb-1">{t("common.displayOrder")}</label>
+                      <input type="number" value={formData.display_order} onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })} className="w-full border border-[#e5e5e5] px-3 py-2" />
                     </div>
                     <div className="flex items-center">
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.is_weekly_pick}
-                          onChange={(e) => setFormData({ ...formData, is_weekly_pick: e.target.checked })}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm">今週の注目</span>
+                        <input type="checkbox" checked={formData.is_weekly_pick} onChange={(e) => setFormData({ ...formData, is_weekly_pick: e.target.checked })} className="w-4 h-4" />
+                        <span className="text-sm">{t("admin.ppl.weeklyPick")}</span>
                       </label>
                     </div>
                     <div className="flex items-center">
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.is_active}
-                          onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm">公開する</span>
+                        <input type="checkbox" checked={formData.is_active} onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} className="w-4 h-4" />
+                        <span className="text-sm">{t("common.publish")}</span>
                       </label>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex gap-4 pt-4 border-t">
-                  <button
-                    type="submit"
-                    disabled={uploading}
-                    className="bg-[#1e3a8a] text-white px-6 py-2 hover:bg-[#15296b] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {uploading ? '保存中...' : '保存'}
+                  <button type="submit" disabled={uploading} className="bg-[#1e3a8a] text-white px-6 py-2 hover:bg-[#15296b] disabled:opacity-50 disabled:cursor-not-allowed">
+                    {uploading ? t("common.saving") : t("common.save")}
                   </button>
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="border border-[#e5e5e5] px-6 py-2 hover:bg-[#f5f5f5]"
-                  >
-                    キャンセル
+                  <button type="button" onClick={resetForm} className="border border-[#e5e5e5] px-6 py-2 hover:bg-[#f5f5f5]">
+                    {t("common.cancel")}
                   </button>
                 </div>
               </form>
@@ -658,16 +447,15 @@ export default function AdminPeople() {
           </div>
         )}
 
-        {/* People List */}
         <div className="bg-white border border-[#e5e5e5]">
           <table className="w-full">
             <thead className="bg-[#fafafa] border-b border-[#e5e5e5]">
               <tr>
-                <th className="text-left px-4 py-3 text-sm font-medium">名前</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">カテゴリ</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">スコア</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">ステータス</th>
-                <th className="text-right px-4 py-3 text-sm font-medium">操作</th>
+                <th className="text-left px-4 py-3 text-sm font-medium">{t("admin.ppl.table.name")}</th>
+                <th className="text-left px-4 py-3 text-sm font-medium">{t("admin.ppl.table.category")}</th>
+                <th className="text-left px-4 py-3 text-sm font-medium">{t("admin.ppl.table.score")}</th>
+                <th className="text-left px-4 py-3 text-sm font-medium">{t("admin.ppl.table.status")}</th>
+                <th className="text-right px-4 py-3 text-sm font-medium">{t("admin.ppl.table.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -676,11 +464,7 @@ export default function AdminPeople() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {person.image_url ? (
-                        <img
-                          src={person.image_url}
-                          alt={person.name_ja}
-                          className="w-10 h-10 rounded-full object-cover border border-[#e5e5e5] flex-shrink-0"
-                        />
+                        <img src={person.image_url} alt={person.name_ja} className="w-10 h-10 rounded-full object-cover border border-[#e5e5e5] flex-shrink-0" />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-[#f0f0f0] border border-[#e5e5e5] flex items-center justify-center flex-shrink-0">
                           <span className="text-[#ccc] text-sm">👤</span>
@@ -695,42 +479,22 @@ export default function AdminPeople() {
                   <td className="px-4 py-3 text-sm">{person.category?.name_ja}</td>
                   <td className="px-4 py-3 text-sm font-bold">{person.score_total}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`text-xs px-2 py-1 ${
-                        person.is_active
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {person.is_active ? "公開中" : "非公開"}
+                    <span className={`text-xs px-2 py-1 ${person.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+                      {person.is_active ? t("common.published") : t("common.unpublished")}
                     </span>
                     {person.is_weekly_pick && (
-                      <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 ml-2">
-                        注目
-                      </span>
+                      <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 ml-2">{t("admin.ppl.featured")}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleEdit(person)}
-                      className="text-sm text-[#1e3a8a] hover:underline mr-4"
-                    >
-                      編集
-                    </button>
-                    <button
-                      onClick={() => handleDelete(person.id)}
-                      className="text-sm text-red-600 hover:underline"
-                    >
-                      削除
-                    </button>
+                    <button onClick={() => handleEdit(person)} className="text-sm text-[#1e3a8a] hover:underline mr-4">{t("common.edit")}</button>
+                    <button onClick={() => handleDelete(person.id)} className="text-sm text-red-600 hover:underline">{t("common.delete")}</button>
                   </td>
                 </tr>
               ))}
               {people.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-[#666]">
-                    人物がありません
-                  </td>
+                  <td colSpan={5} className="px-4 py-8 text-center text-[#666]">{t("admin.ppl.empty")}</td>
                 </tr>
               )}
             </tbody>

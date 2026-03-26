@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslation } from "@/lib/i18n";
 
 export default function VoteButton({ personId }) {
+  const { t } = useTranslation();
   const [hasVoted, setHasVoted] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [voteCount, setVoteCount] = useState(0);
@@ -38,16 +40,16 @@ export default function VoteButton({ personId }) {
             : "bg-[#1e3a8a] text-white hover:bg-[#1e40af]"
         }`}
       >
-        {hasVoted ? "投票済み" : "投票する"}
+        {hasVoted ? t("vote.voted") : t("vote.action")}
       </button>
       {voteCount > 0 && (
         <p className="text-xs text-[#999] mt-2 text-center">
-          {voteCount}票獲得
+          {t("vote.count", { count: voteCount })}
         </p>
       )}
       {showToast && (
         <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-[#1e3a8a] text-white px-6 py-3 shadow-lg z-50">
-          投票しました
+          {t("vote.toast")}
         </div>
       )}
     </>

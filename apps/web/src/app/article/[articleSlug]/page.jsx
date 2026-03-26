@@ -1,5 +1,6 @@
 import { useLoaderData } from "react-router";
 import { getArticleBySlug, getArticles } from "@/lib/supabase";
+import { useTranslation, localizeCategory, localizePerson } from "@/lib/i18n";
 
 export async function loader({ params }) {
   const articleSlug = params?.articleSlug;
@@ -28,21 +29,21 @@ export function meta({ data }) {
 
 export default function ArticlePage() {
   const loaderData = useLoaderData();
+  const { t, lang } = useTranslation();
   const article = loaderData?.article;
 
   if (!article) {
     return (
       <div className="max-w-[800px] mx-auto px-6 py-16">
-        <h1 className="text-2xl font-bold mb-4">記事が見つかりません</h1>
-        <p className="text-[#666]">お探しの記事は存在しないか、削除された可能性があります。</p>
-        <a href="/" className="text-[#1e3a8a] hover:underline mt-4 inline-block">ホームに戻る</a>
+        <h1 className="text-2xl font-bold mb-4">{t("article.notFound.title")}</h1>
+        <p className="text-[#666]">{t("article.notFound.description")}</p>
+        <a href="/" className="text-[#1e3a8a] hover:underline mt-4 inline-block">{t("article.goHome")}</a>
       </div>
     );
   }
 
   const relatedArticles = loaderData?.relatedArticles ?? [];
 
-  // JSON-LD structured data
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -64,18 +65,17 @@ export default function ArticlePage() {
 
   return (
     <article className="max-w-[800px] mx-auto px-6 py-12">
-      {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
       {/* Breadcrumb */}
-      <nav className="mb-6 text-sm" aria-label="パンくずリスト">
+      <nav className="mb-6 text-sm" aria-label={t("article.breadcrumb.ariaLabel")}>
         <ol className="flex items-center">
           <li>
             <a href="/" className="text-[#999] hover:text-[#1e3a8a]">
-              ホーム
+              {t("article.breadcrumb.home")}
             </a>
           </li>
           {article.category && (
@@ -86,14 +86,14 @@ export default function ArticlePage() {
                   href={`/${article.category.slug}`}
                   className="text-[#999] hover:text-[#1e3a8a]"
                 >
-                  {article.category.name_ja}
+                  {localizeCategory(article.category, lang)?.name_ja}
                 </a>
               </li>
             </>
           )}
           <li className="mx-2 text-[#999]">/</li>
           <li>
-            <span className="text-[#333]">記事</span>
+            <span className="text-[#333]">{t("article.breadcrumb.article")}</span>
           </li>
         </ol>
       </nav>
@@ -111,7 +111,7 @@ export default function ArticlePage() {
         <div className="flex items-center gap-4 text-sm text-[#999]">
           {article.published_at && (
             <time dateTime={article.published_at}>
-              {new Date(article.published_at).toLocaleDateString("ja-JP", {
+              {new Date(article.published_at).toLocaleDateString(t("common.dateLocale"), {
                 year: "numeric",
                 month: "long",
                 day: "numeric",
@@ -123,7 +123,7 @@ export default function ArticlePage() {
               href={`/${article.category.slug}`}
               className="text-[#1e3a8a] hover:underline"
             >
-              {article.category.name_ja}
+              {localizeCategory(article.category, lang)?.name_ja}
             </a>
           )}
         </div>
@@ -140,7 +140,7 @@ export default function ArticlePage() {
         </div>
       )}
 
-      {/* Content - Full HTML content for LLM readability */}
+      {/* Content */}
       <div
         className="prose prose-lg max-w-none mb-12"
         dangerouslySetInnerHTML={{ __html: article.content }}
@@ -149,13 +149,13 @@ export default function ArticlePage() {
       {/* Related Person */}
       {article.person && (
         <section className="mb-12 p-6 bg-[#fafafa] border border-[#e5e5e5]">
-          <h2 className="font-bold mb-4">関連人物</h2>
+          <h2 className="font-bold mb-4">{t("article.relatedPerson")}</h2>
           <a
             href={`/p/${article.person.slug}`}
             className="flex items-center gap-4 hover:text-[#1e3a8a]"
           >
-            <span className="font-medium">{article.person.name_ja}</span>
-            <span className="text-sm text-[#666]">→ プロフィールを見る</span>
+            <span className="font-medium">{localizePerson(article.person, lang)?.name_ja}</span>
+            <span className="text-sm text-[#666]">{t("article.viewProfile")}</span>
           </a>
         </section>
       )}
@@ -163,7 +163,7 @@ export default function ArticlePage() {
       {/* Related Articles */}
       {relatedArticles.length > 1 && (
         <section className="border-t border-[#e5e5e5] pt-8">
-          <h2 className="text-xl font-bold mb-6">関連記事</h2>
+          <h2 className="text-xl font-bold mb-6">{t("article.relatedArticles")}</h2>
           <div className="space-y-4">
             {relatedArticles
               .filter((a) => a.id !== article.id)

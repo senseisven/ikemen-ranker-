@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslation } from "@/lib/i18n";
 
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Check if admin is already logged in
     const adminToken = sessionStorage.getItem("adminToken");
     if (adminToken) {
       setIsAuthenticated(true);
@@ -18,13 +19,12 @@ export default function AdminDashboard() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    // Simple authentication (in production, use proper auth)
     if (email === "admin@ikemen.jp" && password === "admin123") {
       sessionStorage.setItem("adminToken", "authenticated");
       setIsAuthenticated(true);
       setError("");
     } else {
-      setError("メールアドレスまたはパスワードが間違っています");
+      setError(t("admin.login.error"));
     }
   };
 
@@ -37,7 +37,7 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
         <div className="bg-white p-8 border border-[#e5e5e5] w-full max-w-md">
-          <h1 className="text-2xl font-bold mb-6 text-center">管理者ログイン</h1>
+          <h1 className="text-2xl font-bold mb-6 text-center">{t("admin.login.title")}</h1>
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium mb-1">メールアドレス</label>
+              <label className="block text-sm font-medium mb-1">{t("admin.login.email")}</label>
               <input
                 type="email"
                 value={email}
@@ -55,7 +55,7 @@ export default function AdminDashboard() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">パスワード</label>
+              <label className="block text-sm font-medium mb-1">{t("admin.login.password")}</label>
               <input
                 type="password"
                 value={password}
@@ -68,7 +68,7 @@ export default function AdminDashboard() {
               type="submit"
               className="w-full bg-[#1e3a8a] text-white py-2 hover:bg-[#15296b] transition-colors"
             >
-              ログイン
+              {t("admin.login.submit")}
             </button>
           </form>
         </div>
@@ -80,70 +80,62 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#fafafa]">
       <header className="bg-white border-b border-[#e5e5e5]">
         <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold">イケメン名鑑 管理画面</h1>
+          <h1 className="text-xl font-bold">{t("admin.header.title")}</h1>
           <button
             onClick={handleLogout}
             className="text-sm text-[#666] hover:text-[#1e3a8a]"
           >
-            ログアウト
+            {t("admin.header.logout")}
           </button>
         </div>
       </header>
 
       <div className="max-w-[1400px] mx-auto px-6 py-8">
-        <h2 className="text-2xl font-bold mb-8">ダッシュボード</h2>
+        <h2 className="text-2xl font-bold mb-8">{t("admin.dashboard")}</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <a
             href="/admin/categories"
             className="bg-white border border-[#e5e5e5] p-6 hover:border-[#1e3a8a] transition-colors"
           >
-            <h3 className="font-bold text-lg mb-2">カテゴリ管理</h3>
-            <p className="text-sm text-[#666]">
-              ハブページ（カテゴリ）の作成・編集・削除
-            </p>
+            <h3 className="font-bold text-lg mb-2">{t("admin.categories.title")}</h3>
+            <p className="text-sm text-[#666]">{t("admin.categories.desc")}</p>
           </a>
 
           <a
             href="/admin/people"
             className="bg-white border border-[#e5e5e5] p-6 hover:border-[#1e3a8a] transition-colors"
           >
-            <h3 className="font-bold text-lg mb-2">人物管理</h3>
-            <p className="text-sm text-[#666]">
-              イケメン人物の登録・編集・削除
-            </p>
+            <h3 className="font-bold text-lg mb-2">{t("admin.people.title")}</h3>
+            <p className="text-sm text-[#666]">{t("admin.people.desc")}</p>
           </a>
 
           <a
             href="/admin/tags"
             className="bg-white border border-[#e5e5e5] p-6 hover:border-[#1e3a8a] transition-colors"
           >
-            <h3 className="font-bold text-lg mb-2">タグ管理</h3>
-            <p className="text-sm text-[#666]">
-              絞り込みタグの作成・編集・削除
-            </p>
+            <h3 className="font-bold text-lg mb-2">{t("admin.tags.title")}</h3>
+            <p className="text-sm text-[#666]">{t("admin.tags.desc")}</p>
           </a>
 
           <a
             href="/admin/articles"
             className="bg-white border border-[#e5e5e5] p-6 hover:border-[#1e3a8a] transition-colors"
           >
-            <h3 className="font-bold text-lg mb-2">記事管理</h3>
-            <p className="text-sm text-[#666]">
-              関連記事の作成・編集（TinyMCE）
-            </p>
+            <h3 className="font-bold text-lg mb-2">{t("admin.articles.title")}</h3>
+            <p className="text-sm text-[#666]">{t("admin.articles.desc")}</p>
           </a>
         </div>
 
         <div className="mt-12">
-          <h3 className="text-lg font-bold mb-4">クイックリンク</h3>
+          <h3 className="text-lg font-bold mb-4">{t("admin.quickLinks")}</h3>
           <div className="flex gap-4">
             <a
               href="/"
               target="_blank"
               className="text-sm text-[#1e3a8a] hover:underline"
             >
-              サイトを表示 →
+              {t("admin.viewSite")}
             </a>
           </div>
         </div>

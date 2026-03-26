@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "@/lib/i18n";
 
 export default function SubmitPage() {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -36,21 +38,21 @@ export default function SubmitPage() {
 
   return (
     <div className="max-w-[700px] mx-auto px-6 py-16">
-      <h1 className="text-3xl font-bold tracking-tight mb-4">掲載リクエスト</h1>
+      <h1 className="text-3xl font-bold tracking-tight mb-4">{t("submit.title")}</h1>
       <p className="text-[#666] leading-relaxed mb-12">
-        各界で活躍するイケメンの掲載をリクエストできます。編集部で審議の上、掲載可否を判断いたします。
+        {t("submit.description")}
       </p>
 
       {submitted && (
         <div className="bg-[#f0f9ff] border border-[#bae6fd] text-[#0c4a6e] px-6 py-4 mb-8">
-          送信を受け付けました。ご提案ありがとうございます。（デモ環境のため、実際の送信は行われません）
+          {t("submit.success")}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label htmlFor="name" className="block font-bold mb-2 text-sm">
-            お名前 <span className="text-[#dc2626]">*</span>
+            {t("submit.name.label")} <span className="text-[#dc2626]">*</span>
           </label>
           <input
             type="text"
@@ -60,13 +62,13 @@ export default function SubmitPage() {
             onChange={handleChange}
             required
             className="w-full border border-[#e5e5e5] px-4 py-3 focus:outline-none focus:border-[#1e3a8a] transition-colors"
-            placeholder="山田太郎"
+            placeholder={t("submit.name.placeholder")}
           />
         </div>
 
         <div>
           <label htmlFor="category" className="block font-bold mb-2 text-sm">
-            カテゴリ <span className="text-[#dc2626]">*</span>
+            {t("submit.category.label")} <span className="text-[#dc2626]">*</span>
           </label>
           <select
             id="category"
@@ -76,20 +78,20 @@ export default function SubmitPage() {
             required
             className="w-full border border-[#e5e5e5] px-4 py-3 focus:outline-none focus:border-[#1e3a8a] transition-colors bg-white"
           >
-            <option value="">選択してください</option>
-            <option value="startup">スタートアップ</option>
-            <option value="actor">俳優</option>
-            <option value="athlete">アスリート</option>
-            <option value="model">モデル</option>
-            <option value="youtuber">YouTuber</option>
-            <option value="musician">ミュージシャン</option>
-            <option value="other">その他</option>
+            <option value="">{t("submit.category.placeholder")}</option>
+            <option value="startup">{t("submit.category.startup")}</option>
+            <option value="actor">{t("submit.category.actor")}</option>
+            <option value="athlete">{t("submit.category.athlete")}</option>
+            <option value="model">{t("submit.category.model")}</option>
+            <option value="youtuber">{t("submit.category.youtuber")}</option>
+            <option value="musician">{t("submit.category.musician")}</option>
+            <option value="other">{t("submit.category.other")}</option>
           </select>
         </div>
 
         <div>
           <label htmlFor="links" className="block font-bold mb-2 text-sm">
-            関連リンク
+            {t("submit.links.label")}
           </label>
           <textarea
             id="links"
@@ -98,16 +100,16 @@ export default function SubmitPage() {
             onChange={handleChange}
             rows={3}
             className="w-full border border-[#e5e5e5] px-4 py-3 focus:outline-none focus:border-[#1e3a8a] transition-colors resize-none"
-            placeholder="公式サイト、SNS、Wikipediaなど（複数可）"
+            placeholder={t("submit.links.placeholder")}
           />
           <p className="text-xs text-[#999] mt-1">
-            1行に1つずつ入力してください
+            {t("submit.links.hint")}
           </p>
         </div>
 
         <div>
           <label htmlFor="reason" className="block font-bold mb-2 text-sm">
-            推薦理由 <span className="text-[#dc2626]">*</span>
+            {t("submit.reason.label")} <span className="text-[#dc2626]">*</span>
           </label>
           <textarea
             id="reason"
@@ -117,7 +119,7 @@ export default function SubmitPage() {
             required
             rows={5}
             className="w-full border border-[#e5e5e5] px-4 py-3 focus:outline-none focus:border-[#1e3a8a] transition-colors resize-none"
-            placeholder="なぜこの人物を掲載すべきか、理由をお書きください"
+            placeholder={t("submit.reason.placeholder")}
           />
         </div>
 
@@ -125,11 +127,11 @@ export default function SubmitPage() {
           type="submit"
           className="w-full bg-[#1e3a8a] text-white px-6 py-4 hover:bg-[#1e40af] transition-colors font-bold"
         >
-          送信する
+          {t("submit.button")}
         </button>
 
         <p className="text-xs text-[#999] leading-relaxed">
-          送信いただいた情報は編集部で確認し、掲載可否を判断いたします。すべてのリクエストに対応できるわけではありませんので、予めご了承ください。なお、本サイトはデモ環境のため、送信された情報はブラウザのローカルストレージに保存され、実際の送信は行われません。
+          {t("submit.disclaimer")}
         </p>
       </form>
     </div>

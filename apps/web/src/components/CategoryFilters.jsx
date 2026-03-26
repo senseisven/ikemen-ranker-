@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { categories } from "@/lib/data";
+import { useTranslation } from "@/lib/i18n";
 
 export default function CategoryFilters({ allPeople, tags, categorySlug }) {
+  const { t } = useTranslation();
   const [sortBy, setSortBy] = useState("score");
   const [selectedTags, setSelectedTags] = useState([]);
 
@@ -40,7 +42,7 @@ export default function CategoryFilters({ allPeople, tags, categorySlug }) {
     <>
       <div className="mb-8 pb-6 border-b border-[#e5e5e5]">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-sm">並び替え</h3>
+          <h3 className="font-bold text-sm">{t("filters.sortBy")}</h3>
           <div className="flex gap-2">
             <button
               onClick={() => setSortBy("score")}
@@ -50,7 +52,7 @@ export default function CategoryFilters({ allPeople, tags, categorySlug }) {
                   : "border-[#e5e5e5] hover:border-[#1e3a8a]"
               }`}
             >
-              スコア順
+              {t("filters.byScore")}
             </button>
             <button
               onClick={() => setSortBy("recent")}
@@ -60,14 +62,14 @@ export default function CategoryFilters({ allPeople, tags, categorySlug }) {
                   : "border-[#e5e5e5] hover:border-[#1e3a8a]"
               }`}
             >
-              新着順
+              {t("filters.byRecent")}
             </button>
           </div>
         </div>
 
         {tags.length > 0 && (
           <div>
-            <h3 className="font-bold text-sm mb-3">タグで絞り込み</h3>
+            <h3 className="font-bold text-sm mb-3">{t("filters.filterByTag")}</h3>
             <div className="flex flex-wrap gap-2">
               {tags.map((tag) => (
                 <button
@@ -88,7 +90,7 @@ export default function CategoryFilters({ allPeople, tags, categorySlug }) {
       </div>
 
       <div className="mb-4 text-sm text-[#666]">
-        {displayPeople.length}件の掲載
+        {t("filters.count", { count: displayPeople.length })}
       </div>
 
       <div className="space-y-0">
