@@ -11,10 +11,13 @@ jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    
+    # Use Node 24 for JavaScript-based actions (addresses Node 20 deprecation on runners)
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Validate secrets
         run: |
@@ -42,7 +45,7 @@ jobs:
 
       - name: Test SSH connection
         run: |
-          ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=15 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
+          ssh -i ~/.ssh/ec2_key.pem -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
 
       - name: Copy project files
         run: |
@@ -55,21 +58,26 @@ jobs:
             --exclude '.react-router' \
             --exclude '*.log' \
             --exclude '.github' \
-            -e "ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no" \
+            -e "ssh -i ~/.ssh/ec2_key.pem -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20" \
             ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/create-anything/
 
       - name: Install dependencies and restart app
         env:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          ssh -i ~/.ssh/ec2_key.pem ${EC2_USER}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
+          ssh -i ~/.ssh/ec2_key.pem -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20 ${EC2_USER}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
             set -e
-            cd /home/ubuntu/create-anything/apps/web
+            # Must match rsync target (same user as EC2_USER secret — do not hardcode /home/ubuntu)
+            cd ~/create-anything/apps/web
             
-            # Check Node.js version and install v20+ if needed
-            NODE_VERSION=$(node -v | cut -d'.' -f1 | tr -d 'v')
-            if [ "$NODE_VERSION" -lt 20 ]; then
-              echo "📥 Upgrading Node.js to v20..."
+            # Ensure Node.js v20+ (Nodesource/apt — Ubuntu/Debian EC2)
+            if command -v node >/dev/null 2>&1; then
+              NODE_VERSION=$(node -v | cut -d'.' -f1 | tr -d 'v')
+            else
+              NODE_VERSION=0
+            fi
+            if [ "${NODE_VERSION:-0}" -lt 20 ]; then
+              echo "📥 Installing Node.js v20 (Nodesource)..."
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
               sudo apt-get install -y nodejs
             fi
@@ -90,7 +98,7 @@ jobs:
 
       - name: Verify deployment
         run: |
-          ssh -i ~/.ssh/ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
+          ssh -i ~/.ssh/ec2_key.pem -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
             echo "🔍 Verifying deployment..."
             pm2 status
             
