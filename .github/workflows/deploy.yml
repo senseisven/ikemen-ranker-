@@ -39,13 +39,42 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key.pem
+          chmod 700 ~/.ssh
+          # Multiline PEM must stay quoted (do not use single quotes around the secret)
+          echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/ec2_key.pem
           chmod 600 ~/.ssh/ec2_key.pem
+          if ! grep -q "BEGIN.*PRIVATE KEY" ~/.ssh/ec2_key.pem; then
+            echo "::error::EC2_SSH_KEY secret must be a PEM private key (include -----BEGIN … KEY----- lines)."
+            exit 1
+          fi
+          if ! ssh-keygen -y -f ~/.ssh/ec2_key.pem -P '' >/dev/null 2>&1; then
+            echo "::error::EC2_SSH_KEY is not usable by OpenSSH (wrong format, passphrase-protected key, or copy/paste broke newlines)."
+            exit 1
+          fi
+          echo "Key fingerprint (for comparison with AWS / your key pair):"
+          ssh-keygen -lf ~/.ssh/ec2_key.pem
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Test SSH connection
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          ssh -i ~/.ssh/ec2_key.pem -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
+          set -e
+          # -4: many EC2 DNS names resolve to IPv6 first; GitHub runners often fail over IPv6 (exit 255)
+          SSH_OPTS="-i $HOME/.ssh/ec2_key.pem -4 -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=25 -o ConnectionAttempts=3"
+          echo "Connecting as ${EC2_USER}@${EC2_HOST} (IPv4)…"
+          if ! ssh $SSH_OPTS "${EC2_USER}@${EC2_HOST}" "echo 'SSH connection successful!'"; then
+            echo ""
+            echo "::error::SSH connection failed (exit 255 / auth / timeout)."
+            echo "Checklist:"
+            echo "  - EC2_HOST: public IPv4 or DNS that resolves to the running instance."
+            echo "  - EC2_USER: ubuntu (Ubuntu AMI), ec2-user (Amazon Linux 2), admin (some images)."
+            echo "  - Security group: inbound TCP 22 from 0.0.0.0/0 (or temporarily open for CI; restrict later)."
+            echo "  - EC2_SSH_KEY: private half of the key pair on the instance (~/.ssh/authorized_keys)."
+            echo "  - Instance running and has a public IP (or use bastion / self-hosted runner if private only)."
+            exit 255
+          fi
 
       - name: Copy project files
         run: |
@@ -58,14 +87,14 @@ jobs:
             --exclude '.react-router' \
             --exclude '*.log' \
             --exclude '.github' \
-            -e "ssh -i ~/.ssh/ec2_key.pem -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20" \
+            -e "ssh -i ~/.ssh/ec2_key.pem -4 -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=25" \
             ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/create-anything/
 
       - name: Install dependencies and restart app
         env:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          ssh -i ~/.ssh/ec2_key.pem -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20 ${EC2_USER}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
+          ssh -i ~/.ssh/ec2_key.pem -4 -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=25 ${EC2_USER}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
             set -e
             # Must match rsync target (same user as EC2_USER secret — do not hardcode /home/ubuntu)
             cd ~/create-anything/apps/web
@@ -98,7 +127,7 @@ jobs:
 
       - name: Verify deployment
         run: |
-          ssh -i ~/.ssh/ec2_key.pem -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=20 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
+          ssh -i ~/.ssh/ec2_key.pem -4 -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=25 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
             echo "🔍 Verifying deployment..."
             pm2 status
             
