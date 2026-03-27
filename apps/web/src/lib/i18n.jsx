@@ -133,7 +133,9 @@ const translations = {
     // Submit page
     "submit.title": "掲載リクエスト",
     "submit.description": "各界で活躍するイケメンの掲載をリクエストできます。編集部で審議の上、掲載可否を判断いたします。",
-    "submit.success": "送信を受け付けました。ご提案ありがとうございます。（デモ環境のため、実際の送信は行われません）",
+    "submit.success": "送信を受け付けました。ご提案ありがとうございます。編集部で確認いたします。",
+    "submit.sending": "送信中...",
+    "submit.errorGeneric": "送信に失敗しました。しばらくしてから再度お試しください。",
     "submit.name.label": "お名前",
     "submit.name.placeholder": "山田太郎",
     "submit.category.label": "カテゴリ",
@@ -151,7 +153,7 @@ const translations = {
     "submit.reason.label": "推薦理由",
     "submit.reason.placeholder": "なぜこの人物を掲載すべきか、理由をお書きください",
     "submit.button": "送信する",
-    "submit.disclaimer": "送信いただいた情報は編集部で確認し、掲載可否を判断いたします。すべてのリクエストに対応できるわけではありませんので、予めご了承ください。なお、本サイトはデモ環境のため、送信された情報はブラウザのローカルストレージに保存され、実際の送信は行われません。",
+    "submit.disclaimer": "送信いただいた情報はデータベースに保存され、編集部で確認のうえ掲載可否を判断いたします。すべてのリクエストに対応できるわけではありませんので、予めご了承ください。",
 
     // Score labels
     "score.cleanliness": "清潔感",
@@ -217,6 +219,11 @@ const translations = {
     "admin.tags.desc": "絞り込みタグの作成・編集・削除",
     "admin.articles.title": "記事管理",
     "admin.articles.desc": "関連記事の作成・編集（TinyMCE）",
+    "admin.requests.title": "掲載リクエスト",
+    "admin.requests.desc": "フォームから届いた掲載希望の一覧を表示",
+    "admin.requests.empty": "まだリクエストはありません。",
+    "admin.requests.table.submitted": "送信日時",
+    "admin.requests.refresh": "再読み込み",
     "admin.quickLinks": "クイックリンク",
     "admin.viewSite": "サイトを表示 →",
 
@@ -434,7 +441,10 @@ const translations = {
     // Submit page
     "submit.title": "Listing Request",
     "submit.description": "You can request the listing of handsome men who are active in various fields. Our editorial team will review and decide whether to feature them.",
-    "submit.success": "Your request has been received. Thank you for your suggestion! (This is a demo — no actual submission is made.)",
+    "submit.success":
+      "Your request has been received. Thank you! Our editorial team will review it.",
+    "submit.sending": "Sending...",
+    "submit.errorGeneric": "Something went wrong. Please try again in a moment.",
     "submit.name.label": "Name",
     "submit.name.placeholder": "John Smith",
     "submit.category.label": "Category",
@@ -452,7 +462,8 @@ const translations = {
     "submit.reason.label": "Reason for Recommendation",
     "submit.reason.placeholder": "Please explain why this person should be featured",
     "submit.button": "Submit",
-    "submit.disclaimer": "The information you submit will be reviewed by our editorial team. Please note that we may not be able to accommodate all requests. As this is a demo site, submitted information is stored only in your browser's local storage.",
+    "submit.disclaimer":
+      "Your submission is stored securely and reviewed by our editorial team. We may not be able to accommodate every request.",
 
     // Score labels
     "score.cleanliness": "Grooming",
@@ -518,6 +529,11 @@ const translations = {
     "admin.tags.desc": "Create, edit, and delete filter tags",
     "admin.articles.title": "Article Management",
     "admin.articles.desc": "Create and edit related articles (TinyMCE)",
+    "admin.requests.title": "Listing requests",
+    "admin.requests.desc": "View submissions from the public listing request form",
+    "admin.requests.empty": "No listing requests yet.",
+    "admin.requests.table.submitted": "Submitted",
+    "admin.requests.refresh": "Refresh",
     "admin.quickLinks": "Quick Links",
     "admin.viewSite": "View Site →",
 

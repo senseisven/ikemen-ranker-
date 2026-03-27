@@ -12,21 +12,32 @@ export default function SubmitPage() {
     reason: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const submissions = JSON.parse(localStorage.getItem("submissions") || "[]");
-    submissions.push({
-      ...formData,
-      submittedAt: new Date().toISOString(),
-    });
-    localStorage.setItem("submissions", JSON.stringify(submissions));
-
-    setSubmitted(true);
-    setFormData({ name: "", category: "", links: "", reason: "" });
-
-    setTimeout(() => setSubmitted(false), 5000);
+    setSubmitError("");
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/submit-listing-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSubmitError(data.error || t("submit.errorGeneric"));
+        return;
+      }
+      setSubmitted(true);
+      setFormData({ name: "", category: "", links: "", reason: "" });
+      setTimeout(() => setSubmitted(false), 8000);
+    } catch {
+      setSubmitError(t("submit.errorGeneric"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleChange = (e) => {
@@ -42,6 +53,12 @@ export default function SubmitPage() {
       <p className="text-[#666] leading-relaxed mb-12">
         {t("submit.description")}
       </p>
+
+      {submitError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 mb-8 text-sm">
+          {submitError}
+        </div>
+      )}
 
       {submitted && (
         <div className="bg-[#f0f9ff] border border-[#bae6fd] text-[#0c4a6e] px-6 py-4 mb-8">
@@ -125,9 +142,10 @@ export default function SubmitPage() {
 
         <button
           type="submit"
-          className="w-full bg-[#1e3a8a] text-white px-6 py-4 hover:bg-[#1e40af] transition-colors font-bold"
+          disabled={submitting}
+          className="w-full bg-[#1e3a8a] text-white px-6 py-4 hover:bg-[#1e40af] transition-colors font-bold disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {t("submit.button")}
+          {submitting ? t("submit.sending") : t("submit.button")}
         </button>
 
         <p className="text-xs text-[#999] leading-relaxed">

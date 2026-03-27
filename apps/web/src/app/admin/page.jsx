@@ -125,6 +125,14 @@ export default function AdminDashboard() {
             <h3 className="font-bold text-lg mb-2">{t("admin.articles.title")}</h3>
             <p className="text-sm text-[#666]">{t("admin.articles.desc")}</p>
           </a>
+
+          <a
+            href="/admin/requests"
+            className="bg-white border border-[#e5e5e5] p-6 hover:border-[#1e3a8a] transition-colors"
+          >
+            <h3 className="font-bold text-lg mb-2">{t("admin.requests.title")}</h3>
+            <p className="text-sm text-[#666]">{t("admin.requests.desc")}</p>
+          </a>
         </div>
 
         <div className="mt-12">
