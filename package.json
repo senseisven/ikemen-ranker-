@@ -3,13 +3,16 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/web"
+  ],
   "scripts": {
-    "dev": "npm --prefix apps/web run dev",
-    "build": "npm --prefix apps/web run build",
-    "start": "npm --prefix apps/web run start",
-    "typecheck": "npm --prefix apps/web run typecheck",
+    "dev": "npm -w web run dev",
+    "build": "npm -w web run build",
+    "start": "npm -w web run start",
+    "typecheck": "npm -w web run typecheck",
     "lint": "eslint .",
-    "test": "npm --prefix apps/web run test"
+    "test": "npm -w web run test"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",

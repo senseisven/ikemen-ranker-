@@ -72,7 +72,7 @@ export default defineConfig({
     // addRenderIds() disabled: wrapping every intrinsic element in CreatePolymorphicComponent
     // caused SSR/client hydration mismatches (UI looked fine then broke after hydrate).
     reactRouter(),
-    tsconfigPaths(),
+    tsconfigPaths({ ignoreConfigErrors: true }),
     aliases(),
     layoutWrapperPlugin(),
   ],
