@@ -1,11 +1,7 @@
 name: Deploy to AWS EC2
 
 on:
-  push:
-    branches:
-      - main
-      - master
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch: # Manual trigger only — click "Run workflow" in GitHub Actions tab
 
 jobs:
   deploy:
@@ -61,20 +57,35 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           set -e
-          # -4: many EC2 DNS names resolve to IPv6 first; GitHub runners often fail over IPv6 (exit 255)
-          SSH_OPTS="-i $HOME/.ssh/ec2_key.pem -4 -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=25 -o ConnectionAttempts=3"
-          echo "Connecting as ${EC2_USER}@${EC2_HOST} (IPv4)…"
-          if ! ssh $SSH_OPTS "${EC2_USER}@${EC2_HOST}" "echo 'SSH connection successful!'"; then
-            echo ""
-            echo "::error::SSH connection failed (exit 255 / auth / timeout)."
-            echo "Checklist:"
-            echo "  - EC2_HOST: public IPv4 or DNS that resolves to the running instance."
-            echo "  - EC2_USER: ubuntu (Ubuntu AMI), ec2-user (Amazon Linux 2), admin (some images)."
-            echo "  - Security group: inbound TCP 22 from 0.0.0.0/0 (or temporarily open for CI; restrict later)."
-            echo "  - EC2_SSH_KEY: private half of the key pair on the instance (~/.ssh/authorized_keys)."
-            echo "  - Instance running and has a public IP (or use bastion / self-hosted runner if private only)."
+          echo "Tip: set EC2_HOST to the instance Public IPv4 (digits only) to avoid DNS/IPv6 issues."
+          echo "Preflight: can we open TCP to ${EC2_HOST}:22 from this runner?"
+          if ! timeout 20 bash -c "echo >/dev/tcp/${EC2_HOST}/22" 2>/dev/null; then
+            echo "::error::Port 22 is not reachable (timeout/refused). Open inbound TCP 22 in the instance security group (e.g. 0.0.0.0/0 for testing). Use the instance's *public* IPv4 in EC2_HOST if it has no public DNS."
             exit 255
           fi
+          echo "TCP 22 reachable."
+          # -4: force IPv4 | IdentitiesOnly: do not try every key in ssh-agent (avoids flaky 255)
+          SSH_BASE="-i $HOME/.ssh/ec2_key.pem -4 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25 -o ConnectionAttempts=2"
+          echo "Trying SSH as ${EC2_USER}@${EC2_HOST} (logging: ssh -v)…"
+          set +e
+          ssh $SSH_BASE -v "${EC2_USER}@${EC2_HOST}" "echo SSH_OK" 2>ssh-test.log
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ]; then
+            echo ""
+            echo "---- Last lines from ssh -v (find Permission denied / Unable to negotiate / timed out) ----"
+            tail -50 ssh-test.log
+            echo "--------------------------------------------------------------------"
+            if grep -qi "permission denied (publickey" ssh-test.log; then
+              echo "::error::Auth failed (publickey). Fix one: (1) EC2_USER must match the AMI (ubuntu / ec2-user / …). (2) EC2_SSH_KEY must be the *private* .pem for the key pair shown on the EC2 instance in AWS (compare fingerprint above to EC2 → Key pair). (3) On the server: ~/.ssh/authorized_keys for that user must include the matching public key."
+            elif grep -qi "connection timed out\|no route to host" ssh-test.log; then
+              echo "::error::Timeout / no route. Security group, wrong IP, or instance stopped."
+            else
+              echo "::error::SSH failed (exit $code). See log above."
+            fi
+            exit 255
+          fi
+          echo "SSH connection successful."
 
       - name: Copy project files
         run: |
@@ -87,14 +98,14 @@ jobs:
             --exclude '.react-router' \
             --exclude '*.log' \
             --exclude '.github' \
-            -e "ssh -i ~/.ssh/ec2_key.pem -4 -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=25" \
+            -e "ssh -i ~/.ssh/ec2_key.pem -4 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25" \
             ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/create-anything/
 
       - name: Install dependencies and restart app
         env:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          ssh -i ~/.ssh/ec2_key.pem -4 -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=25 ${EC2_USER}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
+          ssh -i ~/.ssh/ec2_key.pem -4 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25 ${EC2_USER}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
             set -e
             # Must match rsync target (same user as EC2_USER secret — do not hardcode /home/ubuntu)
             cd ~/create-anything/apps/web
@@ -127,7 +138,7 @@ jobs:
 
       - name: Verify deployment
         run: |
-          ssh -i ~/.ssh/ec2_key.pem -4 -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=25 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
+          ssh -i ~/.ssh/ec2_key.pem -4 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash << 'REMOTE_SCRIPT'
             echo "🔍 Verifying deployment..."
             pm2 status
             
