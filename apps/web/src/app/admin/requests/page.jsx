@@ -2,6 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "@/lib/i18n";
+import {
+  AdminShell,
+  adminBtnSecondaryClass,
+  adminTableWrapClass,
+} from "@/components/admin/AdminShell";
 
 function adminHeaders() {
   return { "X-Admin-Session": sessionStorage.getItem("adminToken") || "" };
@@ -48,71 +53,77 @@ export default function AdminListingRequests() {
 
   const dateLocale = lang === "ja" ? "ja-JP" : "en-US";
 
-  return (
-    <div className="min-h-screen bg-[#fafafa]">
-      <header className="bg-white border-b border-[#e5e5e5]">
-        <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <a href="/admin" className="text-sm text-[#1e3a8a] hover:underline">
-              {t("admin.dashboard")}
-            </a>
-            <h1 className="text-xl font-bold">{t("admin.requests.title")}</h1>
-          </div>
-          <button
-            type="button"
-            onClick={() => load()}
-            className="text-sm text-[#666] hover:text-[#1e3a8a]"
-          >
-            {t("admin.requests.refresh")}
-          </button>
-        </div>
-      </header>
+  if (loading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-50">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#1e3a8a] border-t-transparent" aria-hidden />
+        <p className="text-sm text-slate-600">{t("common.loading")}</p>
+      </div>
+    );
+  }
 
-      <div className="max-w-[1400px] mx-auto px-6 py-8">
-        {loading ? (
-          <p className="text-[#666]">{t("common.loading")}</p>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
-            {error}
-          </div>
-        ) : requests.length === 0 ? (
-          <p className="text-[#666]">{t("admin.requests.empty")}</p>
-        ) : (
-          <div className="bg-white border border-[#e5e5e5] overflow-x-auto">
-            <table className="w-full text-sm">
+  return (
+    <AdminShell
+      title={t("admin.requests.title")}
+      breadcrumbLabel={t("admin.dashboard")}
+      actions={
+        <button type="button" onClick={() => load()} className={adminBtnSecondaryClass}>
+          {t("admin.requests.refresh")}
+        </button>
+      }
+    >
+      {error ? (
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+        >
+          {error}
+        </div>
+      ) : null}
+
+      {requests.length === 0 && !error ? (
+        <div
+          className={`${adminTableWrapClass} px-6 py-16 text-center text-sm text-slate-500`}
+        >
+          {t("admin.requests.empty")}
+        </div>
+      ) : null}
+
+      {requests.length > 0 ? (
+        <div className={adminTableWrapClass}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left text-sm">
               <thead>
-                <tr className="border-b border-[#e5e5e5] bg-[#fafafa] text-left">
-                  <th className="px-4 py-3 font-bold whitespace-nowrap">
+                <tr className="border-b border-slate-200 bg-slate-50/80">
+                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     {t("admin.requests.table.submitted")}
                   </th>
-                  <th className="px-4 py-3 font-bold whitespace-nowrap">
+                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     {t("submit.name.label")}
                   </th>
-                  <th className="px-4 py-3 font-bold whitespace-nowrap">
+                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     {t("submit.category.label")}
                   </th>
-                  <th className="px-4 py-3 font-bold min-w-[200px]">
+                  <th className="min-w-[200px] px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     {t("submit.links.label")}
                   </th>
-                  <th className="px-4 py-3 font-bold min-w-[280px]">
+                  <th className="min-w-[280px] px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     {t("submit.reason.label")}
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {requests.map((row) => (
-                  <tr key={row.id} className="border-b border-[#eee] align-top">
-                    <td className="px-4 py-3 text-[#666] whitespace-nowrap">
-                      {row.created_at
-                        ? new Date(row.created_at).toLocaleString(dateLocale)
-                        : "—"}
+                  <tr key={row.id} className="align-top transition-colors hover:bg-slate-50/80">
+                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-600">
+                      {row.created_at ? new Date(row.created_at).toLocaleString(dateLocale) : "—"}
                     </td>
-                    <td className="px-4 py-3 font-medium">{row.name}</td>
-                    <td className="px-4 py-3">{categoryLabel(t, row.category)}</td>
-                    <td className="px-4 py-3 text-[#444] whitespace-pre-wrap break-words max-w-md">
+                    <td className="px-4 py-3 font-medium text-slate-900">{row.name}</td>
+                    <td className="px-4 py-3 text-slate-700">{categoryLabel(t, row.category)}</td>
+                    <td className="max-w-md break-words px-4 py-3 whitespace-pre-wrap text-slate-600">
                       {row.links || "—"}
                     </td>
-                    <td className="px-4 py-3 text-[#444] whitespace-pre-wrap break-words max-w-xl">
+                    <td className="max-w-xl break-words px-4 py-3 whitespace-pre-wrap text-slate-700">
                       {row.reason}
                     </td>
                   </tr>
@@ -120,8 +131,8 @@ export default function AdminListingRequests() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      ) : null}
+    </AdminShell>
   );
 }

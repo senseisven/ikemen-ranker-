@@ -7,6 +7,12 @@ import {
   adminGetTags,
 } from "@/lib/supabase";
 import { useTranslation } from "@/lib/i18n";
+import {
+  AdminShell,
+  adminBtnPrimaryClass,
+  adminBtnSecondaryClass,
+  adminTableWrapClass,
+} from "@/components/admin/AdminShell";
 
 function adminHeaders() {
   return {
@@ -262,36 +268,29 @@ export default function AdminPeople() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>{t("common.loading")}</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-50">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#1e3a8a] border-t-transparent" aria-hidden />
+        <p className="text-sm text-slate-600">{t("common.loading")}</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa]">
-      <header className="bg-white border-b border-[#e5e5e5]">
-        <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <a href="/admin" className="text-[#666] hover:text-[#1e3a8a]">{t("common.back")}</a>
-            <h1 className="text-xl font-bold">{t("admin.people.title")}</h1>
-          </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-[#1e3a8a] text-white px-4 py-2 text-sm hover:bg-[#15296b]"
-          >
-            {t("common.create")}
-          </button>
-        </div>
-      </header>
-
-      <div className="max-w-[1400px] mx-auto px-6 py-8">
-        {showForm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <h2 className="text-xl font-bold mb-6">
-                {editingId ? t("admin.ppl.editTitle") : t("admin.ppl.newTitle")}
-              </h2>
+    <AdminShell
+      title={t("admin.people.title")}
+      breadcrumbLabel={t("admin.dashboard")}
+      actions={
+        <button type="button" onClick={() => setShowForm(true)} className={adminBtnPrimaryClass}>
+          {t("common.create")}
+        </button>
+      }
+    >
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
+            <h2 className="mb-6 text-lg font-bold text-slate-900">
+              {editingId ? t("admin.ppl.editTitle") : t("admin.ppl.newTitle")}
+            </h2>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-4">
                   <h3 className="font-bold text-sm text-[#666] border-b pb-2">{t("admin.ppl.basicInfo")}</h3>
@@ -484,11 +483,15 @@ export default function AdminPeople() {
                   </div>
                 </div>
 
-                <div className="flex gap-4 pt-4 border-t">
-                  <button type="submit" disabled={uploading} className="bg-[#1e3a8a] text-white px-6 py-2 hover:bg-[#15296b] disabled:opacity-50 disabled:cursor-not-allowed">
+                <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-6">
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    className={`${adminBtnPrimaryClass} disabled:pointer-events-none disabled:opacity-50`}
+                  >
                     {uploading ? t("common.saving") : t("common.save")}
                   </button>
-                  <button type="button" onClick={resetForm} className="border border-[#e5e5e5] px-6 py-2 hover:bg-[#f5f5f5]">
+                  <button type="button" onClick={resetForm} className={adminBtnSecondaryClass}>
                     {t("common.cancel")}
                   </button>
                 </div>
@@ -497,60 +500,97 @@ export default function AdminPeople() {
           </div>
         )}
 
-        <div className="bg-white border border-[#e5e5e5]">
-          <table className="w-full">
-            <thead className="bg-[#fafafa] border-b border-[#e5e5e5]">
-              <tr>
-                <th className="text-left px-4 py-3 text-sm font-medium">{t("admin.ppl.table.name")}</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">{t("admin.ppl.table.category")}</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">{t("admin.ppl.table.score")}</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">{t("admin.ppl.table.status")}</th>
-                <th className="text-right px-4 py-3 text-sm font-medium">{t("admin.ppl.table.actions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {people.map((person) => (
-                <tr key={person.id} className="border-b border-[#e5e5e5] last:border-b-0">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      {person.image_url ? (
-                        <img src={person.image_url} alt={person.name_ja} className="w-10 h-10 rounded-full object-cover border border-[#e5e5e5] flex-shrink-0" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-[#f0f0f0] border border-[#e5e5e5] flex items-center justify-center flex-shrink-0">
-                          <span className="text-[#ccc] text-sm">👤</span>
+        <div className={adminTableWrapClass}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/80">
+                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    {t("admin.ppl.table.name")}
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    {t("admin.ppl.table.category")}
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    {t("admin.ppl.table.score")}
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    {t("admin.ppl.table.status")}
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    {t("admin.ppl.table.actions")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {people.map((person) => (
+                  <tr key={person.id} className="transition-colors hover:bg-slate-50/80">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {person.image_url ? (
+                          <img
+                            src={person.image_url}
+                            alt={person.name_ja}
+                            className="h-10 w-10 shrink-0 rounded-full border border-slate-200 object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-100">
+                            <span className="text-sm text-slate-400">👤</span>
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-medium text-slate-900">{person.name_ja}</div>
+                          <div className="text-xs text-slate-600">{person.title}</div>
                         </div>
-                      )}
-                      <div>
-                        <div className="font-medium">{person.name_ja}</div>
-                        <div className="text-xs text-[#666]">{person.title}</div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm">{person.category?.name_ja}</td>
-                  <td className="px-4 py-3 text-sm font-bold">{person.score_total}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-1 ${person.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
-                      {person.is_active ? t("common.published") : t("common.unpublished")}
-                    </span>
-                    {person.is_weekly_pick && (
-                      <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 ml-2">{t("admin.ppl.featured")}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => handleEdit(person)} className="text-sm text-[#1e3a8a] hover:underline mr-4">{t("common.edit")}</button>
-                    <button onClick={() => handleDelete(person.id)} className="text-sm text-red-600 hover:underline">{t("common.delete")}</button>
-                  </td>
-                </tr>
-              ))}
-              {people.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-[#666]">{t("admin.ppl.empty")}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{person.category?.name_ja}</td>
+                    <td className="px-4 py-3 tabular-nums font-bold text-slate-900">{person.score_total}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          person.is_active
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {person.is_active ? t("common.published") : t("common.unpublished")}
+                      </span>
+                      {person.is_weekly_pick ? (
+                        <span className="ml-2 inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                          {t("admin.ppl.featured")}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(person)}
+                        className="mr-3 text-sm font-medium text-[#1e3a8a] hover:underline"
+                      >
+                        {t("common.edit")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(person.id)}
+                        className="text-sm font-medium text-red-600 hover:underline"
+                      >
+                        {t("common.delete")}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {people.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-14 text-center text-sm text-slate-500">
+                      {t("admin.ppl.empty")}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </div>
+    </AdminShell>
   );
 }
