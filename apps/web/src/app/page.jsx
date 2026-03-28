@@ -1,6 +1,7 @@
-import { getCategories, getWeeklyPicks, getLatestPeople, getRankingsByCategory } from "@/lib/supabase";
+import { getRankingsByCategory, getWeeklyPicks } from "@/lib/supabase";
 import { useLoaderData } from "react-router";
 import { useTranslation, localizeCategory, localizePerson } from "@/lib/i18n";
+import { ListingRequestForm } from "@/components/ListingRequestForm";
 
 export function meta() {
   return [
@@ -16,31 +17,86 @@ export function meta() {
 
 export async function loader() {
   try {
-    const [categoryRankings, weeklyPicks, latest] = await Promise.all([
+    const [categoryRankings, weeklyPicks] = await Promise.all([
       getRankingsByCategory(5),
       getWeeklyPicks(5),
-      getLatestPeople(10),
     ]);
 
-    const categories = categoryRankings.map(r => r.category);
+    const categories = categoryRankings.map((r) => r.category);
 
     return {
       categories: categories ?? [],
       categoryRankings: categoryRankings ?? [],
       weeklyPicks: weeklyPicks ?? [],
-      latest: latest ?? [],
       loadError: null,
     };
   } catch (err) {
-    console.error('Supabase loader error:', err);
+    console.error("Supabase loader error:", err);
     return {
       categories: [],
       categoryRankings: [],
       weeklyPicks: [],
-      latest: [],
       loadError: err?.message || String(err),
     };
   }
+}
+
+function PicksCarousel({ people, lang }) {
+  const items = [...people, ...people];
+  const count = people.length;
+  const cardW = 220;
+  const gap = 20;
+  const totalW = count * (cardW + gap);
+
+  return (
+    <div
+      className="group/carousel relative overflow-hidden"
+      aria-label="Weekly picks carousel"
+    >
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-slate-50/90 to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-slate-50/90 to-transparent" />
+
+      <div
+        className="flex animate-marquee group-hover/carousel:[animation-play-state:paused]"
+        style={{
+          gap: `${gap}px`,
+          width: `${totalW * 2}px`,
+          animationDuration: `${count * 4}s`,
+        }}
+      >
+        {items.map((person, i) => {
+          const lp = localizePerson(person, lang);
+          return (
+            <a
+              key={`${person.id}-${i}`}
+              href={`/p/${person.slug}`}
+              className="group/card block flex-shrink-0"
+              style={{ width: `${cardW}px` }}
+            >
+              <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-slate-100 shadow-sm ring-1 ring-slate-900/5 transition-all duration-300 group-hover/card:shadow-lg group-hover/card:ring-slate-900/10">
+                {person.image_url ? (
+                  <img
+                    src={person.image_url}
+                    alt={person.image_alt || lp.name_ja}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-[1.03]"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-slate-100 text-2xl text-slate-300">
+                    {(i % people.length) + 1}
+                  </div>
+                )}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent px-3 pb-3 pt-10">
+                  <p className="text-sm font-semibold text-white drop-shadow">{lp.name_ja}</p>
+                  <p className="mt-0.5 text-xs text-white/80">{lp.title}</p>
+                </div>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function HomePage() {
@@ -49,286 +105,156 @@ export default function HomePage() {
   const categories = loaderData?.categories ?? [];
   const categoryRankings = loaderData?.categoryRankings ?? [];
   const weeklyPicks = loaderData?.weeklyPicks ?? [];
-  const latest = loaderData?.latest ?? [];
   const loadError = loaderData?.loadError;
-  const hasNoData = categories.length === 0 && categoryRankings.length === 0 && latest.length === 0;
+  const hasNoData = categories.length === 0 && categoryRankings.length === 0;
+
+  const spotlightPeople =
+    weeklyPicks.length > 0
+      ? weeklyPicks.slice(0, 8)
+      : (categoryRankings[0]?.people ?? []).slice(0, 8);
+
+  const spotlightHeading =
+    weeklyPicks.length > 0 ? t("home.minimal.headingPicks") : t("home.minimal.headingRankings");
 
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "イケメン名鑑",
-    "description": "各界で活躍するイケメンを編集部が厳選して掲載するランキングサイト",
-    "url": "https://ikemen.jp",
-    "mainEntity": {
+    name: "イケメン名鑑",
+    description: "各界で活躍するイケメンを編集部が厳選して掲載するランキングサイト",
+    url: "https://ikemen.jp",
+    mainEntity: {
       "@type": "ItemList",
-      "name": "カテゴリ一覧",
-      "itemListElement": categories.map((cat, index) => ({
+      name: "カテゴリ一覧",
+      itemListElement: categories.map((cat, index) => ({
         "@type": "ListItem",
-        "position": index + 1,
-        "item": {
+        position: index + 1,
+        item: {
           "@type": "CollectionPage",
-          "name": cat.name_ja,
-          "description": cat.description,
-          "url": `https://ikemen.jp/${cat.slug}`,
-        }
-      }))
-    }
+          name: cat.name_ja,
+          description: cat.description,
+          url: `https://ikemen.jp/${cat.slug}`,
+        },
+      })),
+    },
   };
 
   return (
-    <div className="relative overflow-hidden">
+    <div className="min-h-screen bg-white text-slate-900 antialiased">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
-      <div className="fixed inset-0 -z-10 bg-slate-50" aria-hidden="true" />
-
+      {/* ── Error / no-data banners ── */}
       {loadError && (
-        <div className="bg-red-50 border-b border-red-200">
-          <div className="max-w-[1200px] mx-auto px-6 py-4">
-            <p className="text-red-800 font-medium text-sm">{t("home.error.supabase")}</p>
-            <p className="text-red-700 text-sm mt-1">{loadError}</p>
-            <p className="text-red-600 text-xs mt-2">
-              {t("home.error.rlsHint")} <code className="bg-red-100 px-1 rounded">.env</code>{" "}
-              <code className="bg-red-100 px-1 rounded">NEXT_PUBLIC_SUPABASE_URL</code>{" / "}
-              <code className="bg-red-100 px-1 rounded">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> {t("home.error.envHint")}
-            </p>
+        <div className="border-b border-red-200 bg-red-50">
+          <div className="mx-auto max-w-3xl px-6 py-4">
+            <p className="text-sm font-medium text-red-800">{t("home.error.supabase")}</p>
+            <p className="mt-1 text-sm text-red-700">{loadError}</p>
           </div>
         </div>
       )}
 
       {!loadError && hasNoData && (
-        <div className="bg-amber-50 border-b border-amber-200">
-          <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-            <p className="text-amber-800 text-sm">
-              {t("home.noData.banner")}
-            </p>
-            <a
-              href="/admin"
-              className="text-amber-800 font-medium hover:text-amber-900 underline text-sm shrink-0"
-            >
+        <div className="border-b border-amber-200 bg-amber-50">
+          <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-4 px-6 py-3">
+            <p className="text-sm text-amber-900">{t("home.noData.banner")}</p>
+            <a href="/admin" className="shrink-0 text-sm font-medium text-amber-900 underline">
               {t("home.noData.link")}
             </a>
           </div>
         </div>
       )}
 
-      {/* Hero Section */}
-      <section className="relative border-b border-slate-200 bg-white">
-        <div className="max-w-[1200px] mx-auto px-6 py-24 md:py-32">
-          <h1 className="font-display text-5xl md:text-6xl font-bold tracking-widest mb-6 text-gradient-neon">
+      {/* ── Hero ── */}
+      <header className="relative overflow-hidden">
+        <div className="pointer-events-none absolute -right-40 -top-40 h-[480px] w-[480px] rounded-full bg-gradient-to-br from-slate-100 to-transparent opacity-60" aria-hidden />
+        <div className="mx-auto max-w-5xl px-6 py-20 sm:py-28">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+            {t("nav.brand")}
+          </p>
+          <h1 className="mt-4 max-w-2xl text-4xl font-bold leading-tight tracking-tight text-slate-900 sm:text-5xl">
             {t("home.hero.title")}
           </h1>
-          <p className="text-slate-600 max-w-[600px] leading-relaxed text-lg">
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-500">
             {t("home.hero.description")}
           </p>
-          <div className="mt-8 flex gap-4">
-            {categories.slice(0, 3).map((cat) => {
-              const lc = localizeCategory(cat, lang);
-              return (
-              <a
-                key={cat.id}
-                href={`/${cat.slug}`}
-                className="px-5 py-2.5 bg-white border border-slate-200 rounded-sm text-indigo-600 text-sm font-medium hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-300 shadow-sm"
-              >
-                {lc.name_ja}
-              </a>
-              );
-            })}
-          </div>
-        </div>
-      </section>
 
-      {hasNoData && (
-        <section className="max-w-[1200px] mx-auto px-6 py-8">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-amber-900">
-            <h3 className="font-bold mb-2">{t("home.noData.title")}</h3>
-            <p className="text-sm mb-4">
-              {t("home.noData.description")}
-              <a href="/admin" className="text-indigo-600 hover:underline font-medium ml-1">{t("home.noData.adminLink")}</a>
-              {t("home.noData.instructions")}
-            </p>
-            <p className="text-xs text-amber-700">
-              {t("home.noData.tableHint")} <code className="bg-amber-100 px-1 rounded">categories</code> / <code className="bg-amber-100 px-1 rounded">people</code> {t("home.noData.activeHint")} <code className="bg-amber-100 px-1 rounded">is_active = true</code> {t("home.noData.activeCondition")}
-            </p>
-          </div>
-        </section>
-      )}
-
-      {/* Per-Category Rankings */}
-      {categoryRankings.map(({ category: cat, people }) => {
-        const lc = localizeCategory(cat, lang);
-        return (
-        <section key={cat.id} className="max-w-[1200px] mx-auto px-6 py-16 border-b border-slate-200">
-          <div className="mb-8 flex items-end justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-px bg-gradient-to-r from-transparent to-indigo-400" />
-                <span className="text-xs uppercase tracking-[0.2em] text-indigo-600 font-display">{t("home.ranking.label")}</span>
-                <div className="flex-1 h-px bg-gradient-to-l from-transparent to-indigo-400" />
-              </div>
-              <h2 className="font-display text-2xl md:text-3xl font-bold text-indigo-600 tracking-wide">
-                — {lc.name_ja} —
-              </h2>
-              {lc.description && (
-                <p className="mt-2 text-slate-500 text-sm max-w-[600px]">{lc.description}</p>
-              )}
-            </div>
-            <a
-              href={`/${cat.slug}`}
-              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap transition-colors"
-            >
-              {t("home.seeAll")}
-            </a>
-          </div>
-
-          {people.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-              {people.map((person, index) => {
-                const lp = localizePerson(person, lang);
+          {categories.length > 0 && (
+            <nav className="mt-10 flex flex-wrap gap-2" aria-label={t("nav.ariaLabel")}>
+              {categories.map((cat) => {
+                const lc = localizeCategory(cat, lang);
                 return (
-                <article key={person.id}>
-                  <a href={`/p/${person.slug}`} className="group block">
-                    <div className="aspect-[3/4] mb-4 relative overflow-hidden rounded-sm border border-slate-200 group-hover:border-indigo-300 transition-all duration-300 bg-white shadow-sm">
-                      <div className="absolute top-2 left-2 z-10 font-display text-xl font-bold text-indigo-600 bg-white/95 px-2 py-0.5 rounded shadow-sm">
-                        {index + 1}
-                      </div>
-                      {person.image_url ? (
-                        <img
-                          src={person.image_url}
-                          alt={person.image_alt || lp.name_ja}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-slate-100" />
-                      )}
-                    </div>
-                    <h3 className="font-bold text-sm mb-1 text-slate-800">{lp.name_ja}</h3>
-                    <p className="text-xs text-slate-600">{lp.title}</p>
-                    <p className="text-xs text-indigo-600 mt-1 font-mono font-semibold">
-                      Score: {person.score_total}
-                    </p>
+                  <a
+                    key={cat.id}
+                    href={`/${cat.slug}`}
+                    className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+                  >
+                    {lc.name_ja}
                   </a>
-                </article>
                 );
               })}
-            </div>
-          ) : (
-            <p className="text-slate-500 text-sm py-4">{t("home.noEntries")}</p>
+            </nav>
           )}
-        </section>
-        );
-      })}
+        </div>
+        <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+      </header>
 
-      {/* Weekly Picks Section */}
-      {weeklyPicks.length > 0 && (
-        <section className="max-w-[1200px] mx-auto px-6 py-20 border-t border-slate-200">
-          <h2 className="font-display text-2xl md:text-3xl font-bold mb-10 text-indigo-600 tracking-wide">
-            {t("home.weeklyPicks")}
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-            {weeklyPicks.map((person) => {
-              const lp = localizePerson(person, lang);
-              return (
-              <article key={person.id}>
-                <a href={`/p/${person.slug}`} className="group block">
-                  <div className="aspect-[3/4] mb-4 relative overflow-hidden rounded-sm border border-slate-200 group-hover:border-indigo-300 transition-all duration-300 bg-white shadow-sm">
-                    {person.image_url ? (
-                      <img
-                        src={person.image_url}
-                        alt={person.image_alt || lp.name_ja}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-slate-100" />
-                    )}
-                  </div>
-                  <h3 className="font-bold text-sm mb-1 text-slate-800">{lp.name_ja}</h3>
-                  <p className="text-xs text-slate-600">{lp.title}</p>
-                  <p className="text-xs text-indigo-600 mt-1 font-mono font-semibold">
-                    Score: {person.score_total}
-                  </p>
+      {/* ── Weekly picks / spotlight — infinite scroll carousel ── */}
+      {!hasNoData && spotlightPeople.length > 0 && (
+        <section className="bg-slate-50/40">
+          <div className="py-16 sm:py-20">
+            <div className="mx-auto mb-10 max-w-5xl px-6 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                {t("home.minimal.headingLabel")}
+              </p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                {spotlightHeading}
+              </h2>
+            </div>
+
+            <PicksCarousel people={spotlightPeople} lang={lang} />
+
+            {weeklyPicks.length === 0 && categoryRankings[0] && (
+              <div className="mt-10 text-center">
+                <a
+                  href={`/${categoryRankings[0].category.slug}`}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 underline-offset-4 transition-colors hover:text-slate-900 hover:underline"
+                >
+                  {t("home.seeAll")}
                 </a>
-              </article>
-              );
-            })}
+              </div>
+            )}
           </div>
+          <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
         </section>
       )}
 
-      {/* Latest Section */}
-      <section className="max-w-[1200px] mx-auto px-6 py-20 border-t border-slate-200">
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-px bg-gradient-to-r from-transparent to-indigo-400" />
-            <span className="text-xs uppercase tracking-[0.2em] text-indigo-600 font-display">{t("home.latest.label")}</span>
-            <div className="flex-1 h-px bg-gradient-to-l from-transparent to-indigo-400" />
-          </div>
-          <h2 className="font-display text-2xl md:text-3xl font-bold text-indigo-600 tracking-wide">
-            {t("home.latest.title")}
-          </h2>
-          <p className="mt-2 text-slate-500 text-sm">
-            {t("home.latest.description", { count: latest.length })}
-          </p>
-        </div>
-        <div className="space-y-0">
-          {latest.map((person, index) => {
-            const lp = localizePerson(person, lang);
-            return (
-            <article key={person.id}>
-              <a
-                href={`/p/${person.slug}`}
-                className="flex items-center gap-4 py-4 border-b border-slate-100 hover:bg-slate-50 px-4 -mx-4 transition-all duration-200 rounded-sm group"
-              >
-                <div className="w-8 text-center flex-shrink-0">
-                  <span className="font-display text-lg font-bold text-indigo-500 group-hover:text-indigo-600 transition-colors">
-                    {index + 1}
-                  </span>
-                </div>
-                <div className="w-16 h-16 flex-shrink-0 relative overflow-hidden rounded-sm border border-slate-200 group-hover:border-indigo-300 transition-colors">
-                  {person.image_url ? (
-                    <img
-                      src={person.image_url}
-                      alt={person.image_alt || lp.name_ja}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-slate-100" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-sm mb-1 text-slate-800">{lp.name_ja}</h3>
-                  <p className="text-xs text-slate-600">{lp.title}</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs text-slate-600">{localizeCategory(person.category, lang)?.name_ja}</span>
-                  <p className="text-sm font-bold mt-1 text-indigo-600 font-mono">{person.score_total}</p>
-                </div>
-              </a>
-            </article>
-            );
-          })}
+      {/* ── Listing request form (bottom) ── */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-xl px-6 py-16 sm:py-20">
+          <ListingRequestForm variant="embedded" />
         </div>
       </section>
 
-      {/* About Section */}
-      <section className="max-w-[1200px] mx-auto px-6 py-20 border-t border-slate-200">
-        <h2 className="font-display text-2xl md:text-3xl font-bold mb-8 text-indigo-600 tracking-wide">
-          {t("home.about.title")}
-        </h2>
-        <div className="max-w-none text-slate-600">
-          <p className="leading-relaxed mb-4">
-            {t("home.about.p1")}
-          </p>
-          <p className="leading-relaxed">
-            {t("home.about.p2")}
-          </p>
+      {/* ── Footer ── */}
+      <footer className="border-t border-slate-100 py-8">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-6 gap-y-2 px-6 text-sm text-slate-400">
+          <a
+            href="/about"
+            className="underline-offset-4 transition-colors hover:text-slate-700 hover:underline"
+          >
+            {t("nav.editorial")}
+          </a>
+          <span className="hidden sm:inline" aria-hidden>·</span>
+          <a
+            href="/submit"
+            className="underline-offset-4 transition-colors hover:text-slate-700 hover:underline"
+          >
+            {t("submit.title")}
+          </a>
         </div>
-      </section>
+      </footer>
     </div>
   );
 }

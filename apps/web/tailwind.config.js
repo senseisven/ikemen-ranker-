@@ -29,6 +29,7 @@ module.exports = {
 			animation: {
 				'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
 				'float': 'float 6s ease-in-out infinite',
+				'marquee': 'marquee var(--duration, 40s) linear infinite',
 			},
 			keyframes: {
 				'glow-pulse': {
@@ -38,6 +39,10 @@ module.exports = {
 				'float': {
 					'0%, 100%': { transform: 'translateY(0)' },
 					'50%': { transform: 'translateY(-10px)' },
+				},
+				'marquee': {
+					'0%': { transform: 'translateX(0)' },
+					'100%': { transform: 'translateX(-50%)' },
 				},
 			},
 			fontFamily: {
