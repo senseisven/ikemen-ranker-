@@ -282,7 +282,26 @@ app.use('/api/auth/*', async (c, next) => {
 });
 app.route(API_BASENAME, api);
 
-export default await createHonoServer({
-  app,
-  defaultLogger: false,
-});
+let server: Hono;
+
+if (process.env.VERCEL) {
+  const { createRequestHandler } = await import('react-router');
+  // @ts-expect-error Virtual module provided by React Router at build time
+  const build = await import('virtual:react-router/server-build');
+
+  const reactRouterApp = new Hono({ strict: false });
+  reactRouterApp.use(async (c) => {
+    const handler = createRequestHandler(build, 'production');
+    return handler(c.req.raw);
+  });
+
+  app.route('/', reactRouterApp);
+  server = app;
+} else {
+  server = await createHonoServer({
+    app,
+    defaultLogger: false,
+  });
+}
+
+export default server;
