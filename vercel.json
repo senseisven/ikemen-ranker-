@@ -4,7 +4,7 @@
   "framework": null,
   "functions": {
     "api/server.mjs": {
-      "includeFiles": "apps/web/build/server/**"
+      "includeFiles": "apps/web/build/server/**,apps/web/package.json,package.json"
     }
   },
   "rewrites": [
