@@ -1,9 +1,16 @@
-import { useLoaderData } from "react-router";
+import { useLoaderData, redirect } from "react-router";
 import { getArticleBySlug, getArticles } from "@/lib/supabase";
 import { useTranslation, localizeCategory, localizePerson } from "@/lib/i18n";
+import { articleUrl, normalizeSlug } from "@/lib/slug";
 
 export async function loader({ params }) {
-  const articleSlug = params?.articleSlug;
+  const rawSlug = params?.articleSlug ?? "";
+  const articleSlug = normalizeSlug(rawSlug);
+
+  if (rawSlug && rawSlug !== articleSlug) {
+    throw redirect(articleUrl(articleSlug));
+  }
+
   const article = articleSlug ? await getArticleBySlug(articleSlug) : null;
 
   if (!article) {
@@ -170,7 +177,7 @@ export default function ArticlePage() {
               .slice(0, 3)
               .map((relatedArticle) => (
                 <article key={relatedArticle.id} className="border-b border-[#e5e5e5] pb-4">
-                  <a href={`/article/${relatedArticle.slug}`} className="hover:text-[#1e3a8a]">
+                  <a href={articleUrl(relatedArticle.slug)} className="hover:text-[#1e3a8a]">
                     <h3 className="font-bold mb-2">{relatedArticle.title}</h3>
                   </a>
                   {relatedArticle.excerpt && (

@@ -2,6 +2,7 @@ import { getRankingsByCategory, getWeeklyPicks, getArticles } from "@/lib/supaba
 import { useState } from "react";
 import { useLoaderData } from "react-router";
 import { useTranslation, localizeCategory, localizePerson } from "@/lib/i18n";
+import { articleUrl } from "@/lib/slug";
 import { ListingRequestForm } from "@/components/ListingRequestForm";
 
 export function meta() {
@@ -222,11 +223,8 @@ export default function HomePage() {
 
       {!loadError && hasNoData && (
         <div className="border-b border-amber-200 bg-amber-50">
-          <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-4 px-6 py-3">
+          <div className="mx-auto max-w-3xl px-6 py-3">
             <p className="text-sm text-amber-900">{t("home.noData.banner")}</p>
-            <a href="/admin" className="shrink-0 text-sm font-medium text-amber-900 underline">
-              {t("home.noData.link")}
-            </a>
           </div>
         </div>
       )}
@@ -299,7 +297,7 @@ export default function HomePage() {
               {articles.map((article, i) => (
                 <a
                   key={article.id}
-                  href={`/article/${article.slug}`}
+                  href={articleUrl(article.slug)}
                   className="group flex flex-row items-start gap-4 rounded-xl border border-slate-100 bg-white p-4 transition-all hover:border-slate-200 hover:shadow-md sm:flex-col sm:gap-0 sm:p-0 sm:overflow-hidden"
                 >
                   {article.featured_image_url ? (

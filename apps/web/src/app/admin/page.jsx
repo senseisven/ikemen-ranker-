@@ -22,7 +22,6 @@ function CardIcon({ children, className = "" }) {
 export default function AdminDashboard() {
   const { t } = useTranslation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
@@ -35,7 +34,7 @@ export default function AdminDashboard() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (email === "admin@ikemen.jp" && password === "admin123") {
+    if (password === "einarisacuteboy") {
       sessionStorage.setItem("adminToken", "authenticated");
       setIsAuthenticated(true);
       setError("");
@@ -76,20 +75,6 @@ export default function AdminDashboard() {
               </div>
             )}
             <div>
-              <label htmlFor="admin-email" className="mb-1.5 block text-sm font-medium text-slate-700">
-                {t("admin.login.email")}
-              </label>
-              <input
-                id="admin-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm transition-colors focus:border-[#1e3a8a] focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20"
-                placeholder="admin@ikemen.jp"
-                autoComplete="username"
-              />
-            </div>
-            <div>
               <label htmlFor="admin-password" className="mb-1.5 block text-sm font-medium text-slate-700">
                 {t("admin.login.password")}
               </label>
@@ -101,6 +86,7 @@ export default function AdminDashboard() {
                 className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm transition-colors focus:border-[#1e3a8a] focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]/20"
                 placeholder="••••••••"
                 autoComplete="current-password"
+                required
               />
             </div>
             <button type="submit" className={`${adminBtnPrimaryClass} w-full py-3 text-base`}>

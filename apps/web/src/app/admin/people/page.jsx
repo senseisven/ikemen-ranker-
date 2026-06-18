@@ -5,6 +5,7 @@ import {
   adminGetPeople,
   adminGetCategories,
   adminGetTags,
+  uploadPersonImage,
 } from "@/lib/supabase";
 import { useTranslation } from "@/lib/i18n";
 import {
@@ -19,22 +20,6 @@ function adminHeaders() {
     "Content-Type": "application/json",
     "X-Admin-Session": sessionStorage.getItem("adminToken") || "",
   };
-}
-
-async function adminUploadPersonImage(file, slug) {
-  const fd = new FormData();
-  fd.append("file", file);
-  fd.append("slug", slug);
-  const res = await fetch("/api/admin/upload-person-image", {
-    method: "POST",
-    headers: {
-      "X-Admin-Session": sessionStorage.getItem("adminToken") || "",
-    },
-    body: fd,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || res.statusText);
-  return data.url;
 }
 
 async function adminSavePerson(editingId, dataToSave, selectedTags) {
@@ -155,7 +140,7 @@ export default function AdminPeople() {
 
       if (imageFile) {
         const slug = formData.slug || `person-${Date.now()}`;
-        imageUrl = await adminUploadPersonImage(imageFile, slug);
+        imageUrl = await uploadPersonImage(imageFile, slug);
       }
 
       const dataToSave = {

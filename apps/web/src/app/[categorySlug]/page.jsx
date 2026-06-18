@@ -6,6 +6,7 @@ import {
 } from "@/lib/supabase";
 import { Link, useLoaderData } from "react-router";
 import { useTranslation, localizeCategory, localizePerson } from "@/lib/i18n";
+import { articleUrl } from "@/lib/slug";
 
 export async function loader({ params, request }) {
   const categorySlug = params?.categorySlug;
@@ -253,7 +254,7 @@ export default function CategoryPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {articles.map((article) => (
                 <article key={article.id} className="glass p-6 rounded-sm hover:border-indigo-300 transition-all duration-300">
-                  <a href={`/article/${article.slug}`}>
+                  <a href={articleUrl(article.slug)}>
                     <h3 className="font-bold text-lg mb-2 text-slate-800 hover:text-indigo-600 transition-colors">{article.title}</h3>
                   </a>
                   {article.excerpt && (

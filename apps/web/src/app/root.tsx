@@ -513,9 +513,6 @@ function AppInner({ categories }: { categories: CategoryNav[] }) {
               <a href="/about" className="text-slate-600 hover:text-indigo-600 transition-colors duration-200">
                 {t("nav.editorial")}
               </a>
-              <a href="/admin" className="text-slate-600 hover:text-indigo-600 transition-colors duration-200">
-                {t("nav.admin")}
-              </a>
               <LanguageToggle />
             </div>
           </nav>

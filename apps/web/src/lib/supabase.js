@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { normalizeSlug } from './slug.js';
 
 // Load from apps/web/.env (see vite.config envPrefix: NEXT_PUBLIC_*, SUPABASE_*)
 const supabaseUrl = import.meta.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
@@ -308,6 +309,9 @@ export async function getArticles(categoryId = null, limit = 20) {
 }
 
 export async function getArticleBySlug(slug) {
+  const normalized = normalizeSlug(slug);
+  if (!normalized) return null;
+
   const { data, error } = await supabase
     .from('articles')
     .select(`
@@ -315,7 +319,7 @@ export async function getArticleBySlug(slug) {
       category:categories(id, slug, name_ja),
       person:people(id, slug, name_ja)
     `)
-    .eq('slug', slug)
+    .eq('slug', normalized)
     .eq('is_published', true)
     .single();
   
@@ -509,16 +513,44 @@ export async function adminGetArticles() {
       category:categories(id, slug, name_ja),
       person:people(id, slug, name_ja)
     `)
+    .order('published_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false });
   
   if (error) throw error;
   return data || [];
 }
 
+const ARTICLE_FIELDS = [
+  'slug',
+  'title',
+  'excerpt',
+  'content',
+  'category_id',
+  'person_id',
+  'featured_image_url',
+  'published_at',
+  'is_published',
+  'meta_title',
+  'meta_description',
+];
+
+function sanitizeArticlePayload(article) {
+  const out = {};
+  for (const key of ARTICLE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(article, key)) {
+      out[key] = article[key];
+    }
+  }
+  if (out.slug != null) {
+    out.slug = normalizeSlug(out.slug);
+  }
+  return out;
+}
+
 export async function adminCreateArticle(article) {
   const { data, error } = await supabase
     .from('articles')
-    .insert(article)
+    .insert(sanitizeArticlePayload(article))
     .select()
     .single();
   
@@ -529,7 +561,7 @@ export async function adminCreateArticle(article) {
 export async function adminUpdateArticle(id, updates) {
   const { data, error } = await supabase
     .from('articles')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...sanitizeArticlePayload(updates), updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single();
@@ -552,34 +584,32 @@ export async function adminDeleteArticle(id) {
 // ============================================
 
 const PERSON_IMAGES_BUCKET = 'person-images';
+const ARTICLE_IMAGES_BUCKET = 'article-images';
 
-async function ensurePersonImagesBucket() {
-  const { data: buckets } = await supabase.storage.listBuckets();
-  if (buckets?.some(b => b.name === PERSON_IMAGES_BUCKET)) return;
-
-  const { error } = await supabase.storage.createBucket(PERSON_IMAGES_BUCKET, {
-    public: true,
-    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
-    fileSizeLimit: 5 * 1024 * 1024,
-  });
-  if (error && !error.message?.includes('already exists')) throw error;
-}
-
-export async function uploadPersonImage(file, personSlug) {
-  await ensurePersonImagesBucket();
-
+async function uploadImageToBucket(bucket, file, slugPrefix) {
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const filePath = `${personSlug}-${Date.now()}.${ext}`;
+  const safeExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
+  const safeSlug = String(slugPrefix).replace(/[^a-zA-Z0-9-_]/g, '-') || 'image';
+  const filePath = `${safeSlug}-${Date.now()}.${safeExt}`;
 
   const { error: uploadError } = await supabase.storage
-    .from(PERSON_IMAGES_BUCKET)
-    .upload(filePath, file, { cacheControl: '31536000', upsert: false });
+    .from(bucket)
+    .upload(filePath, file, {
+      cacheControl: '31536000',
+      upsert: false,
+      contentType: file.type || `image/${safeExt === 'jpg' ? 'jpeg' : safeExt}`,
+    });
 
   if (uploadError) throw uploadError;
 
-  const { data: urlData } = supabase.storage
-    .from(PERSON_IMAGES_BUCKET)
-    .getPublicUrl(filePath);
-
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
   return urlData.publicUrl;
+}
+
+export async function uploadPersonImage(file, personSlug) {
+  return uploadImageToBucket(PERSON_IMAGES_BUCKET, file, personSlug);
+}
+
+export async function uploadArticleImage(file, articleSlug) {
+  return uploadImageToBucket(ARTICLE_IMAGES_BUCKET, file, articleSlug);
 }

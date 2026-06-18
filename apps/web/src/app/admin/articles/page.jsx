@@ -9,13 +9,14 @@ import {
   adminCreateArticle,
   adminUpdateArticle,
   adminDeleteArticle,
+  uploadArticleImage,
 } from "@/lib/supabase";
+import { normalizeSlug } from "@/lib/slug";
 import { useTranslation } from "@/lib/i18n";
 import {
   AdminShell,
   adminBtnPrimaryClass,
   adminBtnSecondaryClass,
-  adminInputClass,
   adminTableWrapClass,
 } from "@/components/admin/AdminShell";
 
@@ -25,7 +26,12 @@ export default function AdminArticles() {
   const [categories, setCategories] = useState([]);
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [publishedAt, setPublishedAt] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const editorRef = useRef(null);
   const [formData, setFormData] = useState({
@@ -39,7 +45,6 @@ export default function AdminArticles() {
     is_published: false,
     meta_title: "",
     meta_description: "",
-    display_order: 0,
   });
 
   useEffect(() => {
@@ -71,13 +76,31 @@ export default function AdminArticles() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      setUploading(true);
       const content = editorRef.current ? editorRef.current.getContent() : formData.content;
+      let featuredImageUrl = formData.featured_image_url;
+
+      if (imageFile) {
+        featuredImageUrl = await uploadArticleImage(
+          imageFile,
+          formData.slug || "article",
+        );
+      }
+
       const dataToSave = {
-        ...formData,
-        content,
+        slug: normalizeSlug(formData.slug),
         category_id: formData.category_id || null,
         person_id: formData.person_id || null,
-        published_at: formData.is_published ? new Date().toISOString() : null,
+        title: formData.title,
+        excerpt: formData.excerpt,
+        content,
+        featured_image_url: featuredImageUrl || null,
+        is_published: formData.is_published,
+        meta_title: formData.meta_title || null,
+        meta_description: formData.meta_description || null,
+        published_at: formData.is_published
+          ? publishedAt || new Date().toISOString()
+          : null,
       };
 
       if (editingId) {
@@ -90,12 +113,14 @@ export default function AdminArticles() {
     } catch (error) {
       console.error("Failed to save article:", error);
       alert(t("common.saveFailed") + error.message);
+    } finally {
+      setUploading(false);
     }
   };
 
   const handleEdit = (article) => {
     setFormData({
-      slug: article.slug,
+      slug: normalizeSlug(article.slug),
       category_id: article.category_id || "",
       person_id: article.person_id || "",
       title: article.title,
@@ -105,8 +130,10 @@ export default function AdminArticles() {
       is_published: article.is_published,
       meta_title: article.meta_title || "",
       meta_description: article.meta_description || "",
-      display_order: article.display_order || 0,
     });
+    setPublishedAt(article.published_at || null);
+    setImageFile(null);
+    setImagePreview(article.featured_image_url || null);
     setEditingId(article.id);
     setShowForm(true);
   };
@@ -134,8 +161,10 @@ export default function AdminArticles() {
       is_published: false,
       meta_title: "",
       meta_description: "",
-      display_order: 0,
     });
+    setPublishedAt(null);
+    setImageFile(null);
+    setImagePreview(null);
     setEditingId(null);
     setShowForm(false);
   };
@@ -169,7 +198,14 @@ export default function AdminArticles() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">{t("common.slug")}*</label>
-                    <input type="text" value={formData.slug} onChange={(e) => setFormData({ ...formData, slug: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="article-title" required />
+                    <input
+                      type="text"
+                      value={formData.slug}
+                      onChange={(e) => setFormData({ ...formData, slug: normalizeSlug(e.target.value) })}
+                      className="w-full border border-[#e5e5e5] px-3 py-2"
+                      placeholder="business-leader-appearance-comparison"
+                      required
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">{t("admin.art.title")}*</label>
@@ -221,9 +257,100 @@ export default function AdminArticles() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-1">{t("admin.art.featuredImage")}</label>
-                  <input type="url" value={formData.featured_image_url} onChange={(e) => setFormData({ ...formData, featured_image_url: e.target.value })} className="w-full border border-[#e5e5e5] px-3 py-2" placeholder="https://..." />
+                <div className="space-y-4">
+                  <h3 className="border-b pb-2 text-sm font-bold text-[#666]">{t("admin.art.featuredImage")}</h3>
+                  <div className="grid grid-cols-[1fr_200px] gap-6">
+                    <div className="space-y-4">
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOver(true);
+                        }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setDragOver(false);
+                          const file = e.dataTransfer.files?.[0];
+                          if (file && file.type.startsWith("image/")) {
+                            setImageFile(file);
+                            setImagePreview(URL.createObjectURL(file));
+                          }
+                        }}
+                        onClick={() => document.getElementById("article-image-input")?.click()}
+                        className={`cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors ${dragOver ? "border-[#1e3a8a] bg-blue-50" : "border-[#d1d5db] hover:border-[#1e3a8a] hover:bg-[#fafafa]"}`}
+                      >
+                        <input
+                          id="article-image-input"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setImageFile(file);
+                              setImagePreview(URL.createObjectURL(file));
+                            }
+                          }}
+                        />
+                        <div className="text-sm text-[#666]">
+                          <p className="mb-1 font-medium">{t("admin.ppl.imageDrop")}</p>
+                          <p className="text-xs text-[#999]">{t("admin.ppl.imageFormats")}</p>
+                        </div>
+                        {imageFile && (
+                          <p className="mt-2 text-xs font-medium text-[#1e3a8a]">
+                            {t("admin.ppl.imageSelected", { name: imageFile.name })}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium">{t("admin.ppl.imageUrlLabel")}</label>
+                        <input
+                          type="url"
+                          value={formData.featured_image_url}
+                          onChange={(e) => {
+                            setFormData({ ...formData, featured_image_url: e.target.value });
+                            if (e.target.value) {
+                              setImagePreview(e.target.value);
+                              setImageFile(null);
+                            }
+                          }}
+                          className="w-full border border-[#e5e5e5] px-3 py-2"
+                          placeholder="https://..."
+                          disabled={!!imageFile}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-xs font-medium text-[#666]">{t("admin.ppl.preview")}</span>
+                      {imagePreview ? (
+                        <div className="relative">
+                          <img
+                            src={imagePreview}
+                            alt={t("admin.ppl.preview")}
+                            className="h-[180px] w-[180px] rounded-lg border border-[#e5e5e5] object-cover"
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setImageFile(null);
+                              setImagePreview(null);
+                              setFormData({ ...formData, featured_image_url: "" });
+                            }}
+                            className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs text-white hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex h-[180px] w-[180px] items-center justify-center rounded-lg border border-[#e5e5e5] bg-[#f5f5f5]">
+                          <span className="text-3xl text-[#ccc]">📷</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -238,22 +365,21 @@ export default function AdminArticles() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">{t("common.displayOrder")}</label>
-                    <input type="number" value={formData.display_order} onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })} className="w-full border border-[#e5e5e5] px-3 py-2" />
-                  </div>
-                  <div className="flex items-center">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={formData.is_published} onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })} className="w-4 h-4" />
-                      <span className="text-sm">{t("common.publish")}</span>
-                    </label>
-                  </div>
+                <div className="flex items-center">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_published}
+                      onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
+                      className="h-4 w-4"
+                    />
+                    <span className="text-sm">{t("common.publish")}</span>
+                  </label>
                 </div>
 
                 <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-6">
-                  <button type="submit" className={adminBtnPrimaryClass}>
-                    {t("common.save")}
+                  <button type="submit" className={adminBtnPrimaryClass} disabled={uploading}>
+                    {uploading ? t("common.saving") : t("common.save")}
                   </button>
                   <button type="button" onClick={resetForm} className={adminBtnSecondaryClass}>
                     {t("common.cancel")}

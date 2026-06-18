@@ -6,6 +6,7 @@ import {
   getArticles,
 } from "@/lib/supabase";
 import { useTranslation, localizeCategory, localizePerson } from "@/lib/i18n";
+import { articleUrl } from "@/lib/slug";
 
 export async function loader({ params }) {
   const personSlug = params?.personSlug;
@@ -325,7 +326,7 @@ export default function PersonPage() {
             <div className="space-y-4">
               {articles.map((article) => (
                 <article key={article.id} className="border-b border-[#e5e5e5] pb-4">
-                  <a href={`/article/${article.slug}`} className="hover:text-[#1e3a8a]">
+                  <a href={articleUrl(article.slug)} className="hover:text-[#1e3a8a]">
                     <h3 className="font-bold mb-2">{article.title}</h3>
                   </a>
                   {article.excerpt && (
